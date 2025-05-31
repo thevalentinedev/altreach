@@ -36,21 +36,12 @@ function extractDateFromSnippet(snippet: string): string | undefined {
 
 // Real search implementation using Google Custom Search API
 async function searchLinkedInPosts(personName: string, company?: string): Promise<SearchResult> {
-  const GOOGLE_API_KEY = process.env.GOOGLE_SEARCH_API_KEY
-  const GOOGLE_CX = process.env.GOOGLE_SEARCH_CX
-
-  console.log("🔍 Searching for recent posts by:", personName, company ? `at ${company}` : "")
-  console.log("🔧 Environment check:", {
-    hasApiKey: !!GOOGLE_API_KEY,
-    apiKeyLength: GOOGLE_API_KEY?.length || 0,
-    hasCX: !!GOOGLE_CX,
-    cxLength: GOOGLE_CX?.length || 0,
-    nodeEnv: process.env.NODE_ENV,
-  })
+  const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY
+  const GOOGLE_CX = process.env.GOOGLE_CX
 
   if (!GOOGLE_API_KEY || !GOOGLE_CX) {
     console.error("❌ Google Search API not configured")
-    console.error("Please add GOOGLE_SEARCH_API_KEY and GOOGLE_SEARCH_CX to your .env.local file")
+    console.error("Please add GOOGLE_API_KEY and GOOGLE_CX to your .env.local file")
     throw new Error("Search service not configured")
   }
 
@@ -60,8 +51,6 @@ async function searchLinkedInPosts(personName: string, company?: string): Promis
     searchQuery += ` "${company}"`
   }
   searchQuery += " (posts OR activity OR shared OR published) -profile -about"
-
-  console.log("🔍 Search query:", searchQuery)
 
   const url = `https://www.googleapis.com/customsearch/v1?key=${GOOGLE_API_KEY}&cx=${GOOGLE_CX}&q=${encodeURIComponent(searchQuery)}&num=5&sort=date`
 
@@ -79,21 +68,10 @@ async function searchLinkedInPosts(personName: string, company?: string): Promis
       throw new Error(`Search API error: ${data.error?.message || response.statusText}`)
     }
 
-    console.log("📊 Search API response:", {
-      totalResults: data.searchInformation?.totalResults || 0,
-      itemsFound: data.items?.length || 0,
-    })
-
     const posts: RecentPost[] = (data.items || [])
       .map((item: any) => {
         const cleanSnippet = cleanSearchSnippet(item.snippet || "")
         const extractedDate = extractDateFromSnippet(item.snippet || "")
-
-        console.log("📝 Processing search result:", {
-          title: item.title?.substring(0, 50) + "...",
-          snippet: cleanSnippet.substring(0, 100) + "...",
-          date: extractedDate,
-        })
 
         return {
           title: item.title || "",
@@ -112,8 +90,6 @@ async function searchLinkedInPosts(personName: string, company?: string): Promis
         return !isProfilePage && hasContent && (isActivityPage || post.title.toLowerCase().includes("post"))
       })
 
-    console.log("✅ Filtered posts:", posts.length)
-
     return {
       posts: posts.slice(0, 3), // Limit to 3 most relevant posts
       searchQuery,
@@ -127,8 +103,6 @@ async function searchLinkedInPosts(personName: string, company?: string): Promis
 
 // Fallback function with mock data for testing
 async function searchLinkedInPostsFallback(personName: string, company?: string): Promise<SearchResult> {
-  console.log("🔄 Using fallback search with mock data for:", personName)
-
   // Generate realistic mock posts based on the person's info
   const mockPosts: RecentPost[] = [
     {
@@ -158,8 +132,6 @@ export async function POST(request: Request) {
   try {
     const { personName, company, profileUrl } = await request.json()
 
-    console.log("🚀 Starting recent posts search for:", { personName, company })
-
     if (!personName) {
       return NextResponse.json({ error: "Person name is required" }, { status: 400 })
     }
@@ -171,17 +143,8 @@ export async function POST(request: Request) {
       try {
         searchResult = await searchLinkedInPosts(personName, company)
       } catch (searchError) {
-        console.log(
-          "⚠️ Real search failed, using fallback:",
-          searchError instanceof Error ? searchError.message : "Unknown error",
-        )
         searchResult = await searchLinkedInPostsFallback(personName, company)
       }
-
-      console.log("✅ Found posts:", searchResult.posts.length)
-      searchResult.posts.forEach((post, index) => {
-        console.log(`📝 Post ${index + 1}:`, post.title.substring(0, 50) + "...")
-      })
 
       return NextResponse.json({
         success: true,

@@ -70,11 +70,7 @@ function checkRateLimit(clientId: string): { allowed: boolean; timeRemaining?: n
 
 // Enhanced profile context builder with recent posts
 function buildEnhancedProfileContext(profileData: ProfileData | null, profileUrl: string): string {
-  console.log("🔧 Building enhanced profile context...")
-  console.log("📊 Profile data received:", JSON.stringify(profileData, null, 2))
-
   if (!profileData) {
-    console.log("❌ No profile data available")
     return "LinkedIn professional (no profile data available)"
   }
 
@@ -84,33 +80,27 @@ function buildEnhancedProfileContext(profileData: ProfileData | null, profileUrl
   // Add basic info
   if (profileData.name) {
     contextParts.push(`Name: ${profileData.name}`)
-    console.log("✅ Added name to context:", profileData.name)
   }
 
   if (profileData.headline) {
     contextParts.push(`Current Role/Headline: ${profileData.headline}`)
-    console.log("✅ Added headline to context:", profileData.headline)
   }
 
   // Add structured data
   if (profileData.company) {
     contextParts.push(`Current Company: ${profileData.company}`)
-    console.log("✅ Added company to context:", profileData.company)
   }
 
   if (profileData.education) {
     contextParts.push(`Education: ${profileData.education}`)
-    console.log("✅ Added education to context:", profileData.education)
   }
 
   if (profileData.location) {
     contextParts.push(`Location: ${profileData.location}`)
-    console.log("✅ Added location to context:", profileData.location)
   }
 
   if (profileData.connections) {
     contextParts.push(`Network Size: ${profileData.connections} connections`)
-    console.log("✅ Added connections to context:", profileData.connections)
   }
 
   // Add recent posts information
@@ -119,27 +109,21 @@ function buildEnhancedProfileContext(profileData: ProfileData | null, profileUrl
     profileData.recentPosts.slice(0, 2).forEach((post, index) => {
       const postInfo = `${index + 1}. ${post.date ? `(${post.date}) ` : ""}${post.title}: ${post.snippet.substring(0, 150)}${post.snippet.length > 150 ? "..." : ""}`
       contextParts.push(postInfo)
-      console.log("✅ Added recent post to context:", post.title.substring(0, 50) + "...")
     })
   }
 
   // Add raw data insights if available
   if (profileData.rawData) {
-    console.log("🔍 Processing raw data...")
-
     if (profileData.rawData.ogTitle && profileData.rawData.ogTitle !== profileData.name) {
       contextParts.push(`Profile Title: ${profileData.rawData.ogTitle}`)
-      console.log("✅ Added OG title to context:", profileData.rawData.ogTitle)
     }
 
     if (profileData.rawData.ogDescription && profileData.rawData.ogDescription !== profileData.headline) {
       contextParts.push(`Full Profile Description: ${profileData.rawData.ogDescription}`)
-      console.log("✅ Added OG description to context:", profileData.rawData.ogDescription)
     }
 
     // Add scraped elements for more context
     if (profileData.rawData.scrapedElements && profileData.rawData.scrapedElements.length > 0) {
-      console.log("🕷️ Adding scraped elements to context...")
       const relevantElements = profileData.rawData.scrapedElements
         .filter(
           (element) =>
@@ -153,7 +137,6 @@ function buildEnhancedProfileContext(profileData: ProfileData | null, profileUrl
         contextParts.push("Additional Profile Information:")
         relevantElements.forEach((element) => {
           contextParts.push(`- ${element}`)
-          console.log("✅ Added scraped element:", element.substring(0, 100) + "...")
         })
       }
     }
@@ -164,13 +147,9 @@ function buildEnhancedProfileContext(profileData: ProfileData | null, profileUrl
     const urlMatch = profileUrl.match(/linkedin\.com\/in\/([^/?]+)/)
     const username = urlMatch ? urlMatch[1].replace(/-/g, " ") : "LinkedIn user"
     contextParts.push(`LinkedIn Username: ${username}`)
-    console.log("⚠️ Using URL fallback:", username)
   }
 
   context = contextParts.join("\n")
-  console.log("🎯 Final profile context:")
-  console.log(context)
-  console.log("📏 Context length:", context.length)
 
   return context
 }
@@ -178,9 +157,6 @@ function buildEnhancedProfileContext(profileData: ProfileData | null, profileUrl
 // Parse GPT response in the format "Tone: [tone]\nMessage: [message]"
 function parseGPTResponse(content: string): { tone: string; message: string } | null {
   try {
-    // Log the raw response for debugging
-    console.log("🤖 Raw GPT response:", content)
-
     // Default values in case parsing fails
     let tone = "Professional but warm"
     let message = ""
@@ -191,13 +167,10 @@ function parseGPTResponse(content: string): { tone: string; message: string } | 
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0])
         if (parsed.tone && parsed.message) {
-          console.log("✅ Parsed as JSON:", { tone: parsed.tone, message: parsed.message.substring(0, 100) + "..." })
           return { tone: parsed.tone, message: parsed.message }
         }
       }
-    } catch (jsonError) {
-      console.log("ℹ️ Not valid JSON, continuing with text parsing")
-    }
+    } catch (jsonError) {}
 
     // Parse the expected format: "Tone: [tone]\nMessage: [message]"
     const toneMatch = content.match(/Tone:\s*(.+?)(?:\n|$)/i)
@@ -205,12 +178,10 @@ function parseGPTResponse(content: string): { tone: string; message: string } | 
 
     if (toneMatch) {
       tone = toneMatch[1].trim()
-      console.log("✅ Extracted tone:", tone)
     }
 
     if (messageMatch) {
       message = messageMatch[1].trim()
-      console.log("✅ Extracted message:", message.substring(0, 100) + "...")
     } else {
       // If no message match, try to extract everything after "Message:" line
       const lines = content.split("\n")
@@ -222,7 +193,6 @@ function parseGPTResponse(content: string): { tone: string; message: string } | 
           .slice(messageIndex + 1)
           .join(" ")
           .trim()
-        console.log("✅ Extracted message from lines:", message.substring(0, 100) + "...")
       }
     }
 
@@ -232,17 +202,14 @@ function parseGPTResponse(content: string): { tone: string; message: string } | 
       const afterTone = content.replace(/Tone:\s*.+?(?:\n|$)/i, "").trim()
       if (afterTone) {
         message = afterTone.replace(/^Message:\s*/i, "").trim()
-        console.log("✅ Extracted message (alternative):", message.substring(0, 100) + "...")
       }
     }
 
     // Ensure we have at least some content
     if (message) {
-      console.log("🎯 Final parsed result:", { tone, messageLength: message.length })
       return { tone, message }
     }
 
-    console.log("❌ No valid message found in response")
     return null
   } catch (error) {
     console.error("❌ Error parsing GPT response:", error)
@@ -267,7 +234,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid request format. Please try again." }, { status: 400 })
     }
 
-    console.log("📥 Request data received:", JSON.stringify(requestData, null, 2))
+    const { profileData, useSmartTone = true, manualTone, profileUrl, existingMessages = [] } = requestData
+
+    if (!profileData && !profileUrl) {
+      return NextResponse.json({ error: "Profile data or URL is required" }, { status: 400 })
+    }
 
     // Rate limiting check
     const clientId = getClientId(request)
@@ -290,12 +261,6 @@ export async function POST(request: Request) {
       )
     }
 
-    const { profileData, useSmartTone = true, manualTone, profileUrl, existingMessages = [] } = requestData
-
-    if (!profileData && !profileUrl) {
-      return NextResponse.json({ error: "Profile data or URL is required" }, { status: 400 })
-    }
-
     // Build enhanced context using all available data including recent posts
     const profileContext = buildEnhancedProfileContext(profileData, profileUrl)
 
@@ -305,7 +270,6 @@ export async function POST(request: Request) {
       existingMessagesContext = `\n\nPrevious messages already generated (create a different approach):\n${existingMessages
         .map((msg: string, index: number) => `${index + 1}. ${msg}`)
         .join("\n")}`
-      console.log("📝 Added existing messages context:", existingMessagesContext.length, "characters")
     }
 
     const systemPrompt = `You are a LinkedIn networking strategist who specializes in writing connection requests that get accepted.
@@ -370,10 +334,6 @@ Tone: ${manualTone}
 Message: [connection message with specific profile references]`
     }
 
-    console.log("📤 Sending prompt to GPT:")
-    console.log("System:", systemPrompt.substring(0, 200) + "...")
-    console.log("User:", userPrompt.substring(0, 300) + "...")
-
     try {
       const response = await openai.chat.completions.create({
         model: "gpt-3.5-turbo",
@@ -416,9 +376,6 @@ Message: [connection message with specific profile references]`
         .replace(/\n+/g, " ") // Replace newlines with spaces
         .trim()
 
-      console.log("🎯 Final message generated:", cleanMessage)
-      console.log("📏 Message length:", cleanMessage.length)
-
       // Check character limit
       if (cleanMessage.length > 300) {
         // Try to truncate at a sentence boundary
@@ -437,7 +394,6 @@ Message: [connection message with specific profile references]`
 
         if (truncated && truncated.length > 50) {
           const finalMessage = truncated + (truncated.endsWith(".") ? "" : ".")
-          console.log("✂️ Truncated message:", finalMessage)
           return NextResponse.json({
             message: finalMessage,
             characterCount: finalMessage.length,
@@ -447,7 +403,6 @@ Message: [connection message with specific profile references]`
         } else {
           // Fallback: hard truncate
           const hardTruncated = cleanMessage.substring(0, 297) + "..."
-          console.log("✂️ Hard truncated message:", hardTruncated)
           return NextResponse.json({
             message: hardTruncated,
             characterCount: 300,
@@ -457,7 +412,6 @@ Message: [connection message with specific profile references]`
         }
       }
 
-      console.log("✅ Message generation successful")
       return NextResponse.json({
         message: cleanMessage,
         characterCount: cleanMessage.length,
@@ -477,14 +431,6 @@ Message: [connection message with specific profile references]`
       const company = profileData?.company || profileData?.headline || "your field"
       const education = profileData?.education
       const recentPost = profileData?.recentPosts?.[0]
-
-      console.log("🔄 Generating fallback message with:", {
-        name,
-        company,
-        education,
-        hasRecentPost: !!recentPost,
-        tone: fallbackTone,
-      })
 
       if (fallbackTone.toLowerCase().includes("professional") || fallbackTone.toLowerCase().includes("formal")) {
         const variations = [
@@ -520,8 +466,6 @@ Message: [connection message with specific profile references]`
         ]
         fallbackMessage = variations[(messageNumber - 1) % variations.length]
       }
-
-      console.log("🔄 Fallback message generated:", fallbackMessage)
 
       return NextResponse.json({
         message: fallbackMessage,

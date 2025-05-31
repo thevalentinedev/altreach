@@ -161,9 +161,6 @@ function processPostContent(postContent: PostContent | null): string {
 // Parse GPT response in the format "Tone: [tone]\nComment: [comment]"
 function parseGPTResponse(content: string): { tone: string; comment: string } | null {
   try {
-    // Log the raw response for debugging
-    console.log("Raw GPT response:", content)
-
     // Default values in case parsing fails
     let tone = "Conversational"
     let comment = ""
@@ -178,7 +175,7 @@ function parseGPTResponse(content: string): { tone: string; comment: string } | 
         }
       }
     } catch (jsonError) {
-      console.log("Not valid JSON, continuing with text parsing")
+      // No console log here
     }
 
     // Parse the expected format: "Tone: [tone]\nComment: [comment]"

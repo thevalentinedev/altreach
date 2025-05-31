@@ -28,14 +28,6 @@ interface ProfileData {
 function extractNameFromTitle(title: string): string | null {
   if (!title) return null
 
-  console.log("🔍 Extracting name from title:", title)
-
-  // Common LinkedIn title patterns
-  // "John Doe | Software Engineer at Company"
-  // "John Doe - Software Engineer"
-  // "John Doe on LinkedIn"
-  // "John Doe | LinkedIn"
-
   // Remove common LinkedIn suffixes
   const cleanTitle = title
     .replace(/\s*\|\s*LinkedIn$/i, "")
@@ -46,19 +38,15 @@ function extractNameFromTitle(title: string): string | null {
   const nameMatch = cleanTitle.match(/^([^|-]+)/)
   if (nameMatch) {
     const extractedName = nameMatch[1].trim()
-    console.log("✅ Extracted name:", extractedName)
     return extractedName
   }
 
   const fallbackName = cleanTitle.trim() || null
-  console.log("⚠️ Fallback name:", fallbackName)
   return fallbackName
 }
 
 function extractHeadlineFromDescription(description: string): string | null {
   if (!description) return null
-
-  console.log("🔍 Extracting headline from description:", description)
 
   // Clean up common LinkedIn description patterns
   let cleanDescription = description
@@ -69,8 +57,6 @@ function extractHeadlineFromDescription(description: string): string | null {
     .replace(/,\s*a\s+professional\s+community\s+of\s+[\d\w\s]+members\.?$/i, "")
     .trim()
 
-  console.log("🧹 Cleaned description:", cleanDescription)
-
   // Enhanced parsing for LinkedIn's structured format
   // Pattern: "Name is a [role/description] · Experience: Company · Education: School · Location: Place"
 
@@ -78,7 +64,6 @@ function extractHeadlineFromDescription(description: string): string | null {
   const mainDescMatch = cleanDescription.match(/^[^·]+?is\s+an?\s+([^·]+?)(?:\s*·|$)/i)
   if (mainDescMatch) {
     const headline = mainDescMatch[1].trim()
-    console.log("✅ Extracted headline from 'is a/an' pattern:", headline)
     return headline
   }
 
@@ -86,7 +71,6 @@ function extractHeadlineFromDescription(description: string): string | null {
   const experienceMatch = cleanDescription.match(/Experience:\s*([^·]+)/i)
   if (experienceMatch) {
     const experience = experienceMatch[1].trim()
-    console.log("✅ Extracted experience as headline:", experience)
     return `Professional at ${experience}`
   }
 
@@ -94,13 +78,11 @@ function extractHeadlineFromDescription(description: string): string | null {
   const educationMatch = cleanDescription.match(/Education:\s*([^·]+)/i)
   if (educationMatch) {
     const education = educationMatch[1].trim()
-    console.log("✅ Extracted education as headline:", education)
     return `Graduate from ${education}`
   }
 
   // Fallback to original logic for other formats
   if (cleanDescription.endsWith(" is a") || cleanDescription.endsWith(" is an") || cleanDescription.endsWith(" is")) {
-    console.log("⚠️ Description appears truncated, rejecting:", cleanDescription)
     return null
   }
 
@@ -109,7 +91,6 @@ function extractHeadlineFromDescription(description: string): string | null {
     const sentences = cleanDescription.split(/[.!?]+/)
     if (sentences.length > 0 && sentences[0].length > 20) {
       cleanDescription = sentences[0].trim()
-      console.log("✂️ Truncated to first sentence:", cleanDescription)
     } else {
       const words = cleanDescription.split(" ")
       let truncated = ""
@@ -121,16 +102,13 @@ function extractHeadlineFromDescription(description: string): string | null {
         }
       }
       cleanDescription = truncated + (truncated.length < cleanDescription.length ? "..." : "")
-      console.log("✂️ Truncated at word boundary:", cleanDescription)
     }
   }
 
   if (cleanDescription.length < 10 || cleanDescription.match(/\b\w{1,2}\s*$/)) {
-    console.log("❌ Description too short or incomplete:", cleanDescription)
     return null
   }
 
-  console.log("✅ Final headline:", cleanDescription)
   return cleanDescription || null
 }
 
@@ -144,34 +122,28 @@ function extractStructuredData(description: string): {
 
   if (!description) return data
 
-  console.log("📊 Extracting structured data from:", description)
-
   // Extract company/experience
   const experienceMatch = description.match(/Experience:\s*([^·]+)/i)
   if (experienceMatch) {
     data.company = experienceMatch[1].trim()
-    console.log("🏢 Found company:", data.company)
   }
 
   // Extract education
   const educationMatch = description.match(/Education:\s*([^·]+)/i)
   if (educationMatch) {
     data.education = educationMatch[1].trim()
-    console.log("🎓 Found education:", data.education)
   }
 
   // Extract location
   const locationMatch = description.match(/Location:\s*([^·]+)/i)
   if (locationMatch) {
     data.location = locationMatch[1].trim()
-    console.log("📍 Found location:", data.location)
   }
 
   // Extract connections
   const connectionsMatch = description.match(/(\d+\+?)\s+connections/i)
   if (connectionsMatch) {
     data.connections = connectionsMatch[1]
-    console.log("🤝 Found connections:", data.connections)
   }
 
   return data
@@ -185,8 +157,6 @@ function scrapeFallbackContent($: cheerio.CheerioAPI): {
   let name: string | null = null
   let headline: string | null = null
   const scrapedElements: string[] = []
-
-  console.log("🕷️ Starting fallback scraping...")
 
   // Try to find name from various selectors
   const nameSelectors = [
@@ -204,11 +174,9 @@ function scrapeFallbackContent($: cheerio.CheerioAPI): {
     const element = $(selector).first()
     if (element.length) {
       const text = element.text().trim()
-      console.log(`🔍 Name selector "${selector}":`, text)
       scrapedElements.push(`Name candidate (${selector}): ${text}`)
       if (text && text.length > 2 && text.length < 100 && !name) {
         name = text
-        console.log("✅ Selected name:", name)
       }
     }
   }
@@ -233,11 +201,9 @@ function scrapeFallbackContent($: cheerio.CheerioAPI): {
     const element = $(selector).first()
     if (element.length) {
       const text = element.text().trim()
-      console.log(`🔍 Headline selector "${selector}":`, text)
       scrapedElements.push(`Headline candidate (${selector}): ${text}`)
       if (text && text.length > 5 && text.length < 300 && !headline) {
         headline = text
-        console.log("✅ Selected headline:", headline)
       }
     }
   }
@@ -253,9 +219,8 @@ function scrapeFallbackContent($: cheerio.CheerioAPI): {
   for (const selector of aboutSelectors) {
     const element = $(selector).first()
     if (element.length) {
-      const text = element.text().trim()
+      const text = $(element).text().trim()
       if (text && text.length > 20) {
-        console.log(`📝 About section (${selector}):`, text.substring(0, 200) + "...")
         scrapedElements.push(`About section: ${text.substring(0, 300)}`)
       }
     }
@@ -274,7 +239,6 @@ function scrapeFallbackContent($: cheerio.CheerioAPI): {
     elements.each((i, el) => {
       const text = $(el).text().trim()
       if (text && text.length > 10) {
-        console.log(`💼 Experience ${i + 1} (${selector}):`, text.substring(0, 150) + "...")
         scrapedElements.push(`Experience ${i + 1}: ${text.substring(0, 200)}`)
       }
     })
@@ -282,30 +246,24 @@ function scrapeFallbackContent($: cheerio.CheerioAPI): {
 
   // If we found a name but no headline, try to extract from the first paragraph
   if (name && !headline) {
-    console.log("🔍 Looking for headline in paragraphs...")
     const paragraphs = $("p").toArray()
     for (const p of paragraphs) {
       const text = $(p).text().trim()
       if (text.length > 10 && text.length < 200) {
-        console.log("📝 Paragraph candidate:", text)
         scrapedElements.push(`Paragraph: ${text}`)
         if (!headline) {
           headline = text
-          console.log("✅ Selected paragraph as headline:", headline)
         }
       }
     }
   }
 
-  console.log("🕷️ Scraping complete. Found:", { name, headline, elementsCount: scrapedElements.length })
   return { name, headline, scrapedElements }
 }
 
 // Helper function to search for recent posts
 async function searchRecentPosts(name: string, company?: string): Promise<RecentPost[]> {
   try {
-    console.log("🔍 Searching for recent posts...")
-
     // Use the correct base URL for the API call
     const baseUrl = process.env.VERCEL_URL
       ? `https://${process.env.VERCEL_URL}`
@@ -323,12 +281,10 @@ async function searchRecentPosts(name: string, company?: string): Promise<Recent
     })
 
     if (!response.ok) {
-      console.log("⚠️ Recent posts search failed, continuing without posts")
       return []
     }
 
     const data = await response.json()
-    console.log("✅ Recent posts search result:", data.posts?.length || 0, "posts found")
 
     return data.posts || []
   } catch (error) {
@@ -340,8 +296,6 @@ async function searchRecentPosts(name: string, company?: string): Promise<Recent
 export async function POST(request: Request) {
   try {
     const { url } = await request.json()
-
-    console.log("🚀 Starting profile analysis for:", url)
 
     if (!url) {
       return NextResponse.json({ error: "URL is required" }, { status: 400 })
@@ -355,7 +309,6 @@ export async function POST(request: Request) {
 
     try {
       // Fetch the HTML content
-      console.log("📡 Fetching profile HTML...")
       const response = await fetch(url, {
         headers: {
           "User-Agent":
@@ -374,12 +327,10 @@ export async function POST(request: Request) {
       }
 
       const html = await response.text()
-      console.log("📄 HTML fetched, length:", html.length)
 
       const $ = cheerio.load(html)
 
       // Step 1: Try to parse Open Graph tags
-      console.log("🏷️ Parsing Open Graph tags...")
       const ogTitle =
         $('meta[property="og:title"]').attr("content") ||
         $('meta[name="og:title"]').attr("content") ||
@@ -389,8 +340,6 @@ export async function POST(request: Request) {
         $('meta[property="og:description"]').attr("content") ||
         $('meta[name="og:description"]').attr("content") ||
         $('meta[name="description"]').attr("content")
-
-      console.log("🏷️ Open Graph data:", { ogTitle, ogDescription })
 
       if (ogTitle || ogDescription) {
         const name = extractNameFromTitle(ogTitle || "")
@@ -416,13 +365,11 @@ export async function POST(request: Request) {
             },
           }
 
-          console.log("✅ Successfully parsed from Open Graph:", profileData)
           return NextResponse.json({ profileData })
         }
       }
 
       // Step 2: Scrape fallback
-      console.log("🕷️ Open Graph parsing insufficient, trying scraping fallback...")
       const scrapedData = scrapeFallbackContent($)
 
       if (scrapedData.name || scrapedData.headline) {
@@ -444,12 +391,10 @@ export async function POST(request: Request) {
           },
         }
 
-        console.log("✅ Successfully scraped profile data:", profileData)
         return NextResponse.json({ profileData })
       }
 
       // Step 3: Fallback to GPT inference
-      console.log("❌ No profile data found, falling back to AI inference")
       const profileData: ProfileData = {
         name: null,
         headline: null,
