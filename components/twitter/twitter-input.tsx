@@ -875,7 +875,9 @@ export default function TwitterInput({
                   {isLoggingIn ? (
                     <>
                       <Loader2 className="mr-3 h-5 w-5 animate-spin" />
-                      Opening Browser & Waiting for Login...
+                      {process.env.NODE_ENV === "production"
+                        ? "Processing Login Request..."
+                        : "Opening Browser & Waiting for Login..."}
                     </>
                   ) : (
                     <>
@@ -893,7 +895,9 @@ export default function TwitterInput({
                       <div className="space-y-1">
                         <p className="font-medium">Authentication in progress...</p>
                         <p className="text-sm">
-                          A browser window will open. Please log in to Twitter/X and wait for the process to complete.
+                          {process.env.NODE_ENV === "production"
+                            ? "Processing your login request. This may take a moment as we securely authenticate with Twitter."
+                            : "A browser window will open. Please log in to Twitter/X and wait for the process to complete."}
                         </p>
                       </div>
                     </AlertDescription>
@@ -934,6 +938,8 @@ export default function TwitterInput({
                     <p className="text-xs">
                       Your authentication is processed securely and stored locally in your browser. We never store your
                       Twitter credentials on our servers. Session data expires automatically after 24 hours.
+                      {process.env.NODE_ENV === "production" &&
+                        " In production, authentication runs in a secure headless environment."}
                     </p>
                   </div>
                 </AlertDescription>

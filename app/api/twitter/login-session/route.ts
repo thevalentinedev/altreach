@@ -17,32 +17,22 @@ export async function POST(request: Request) {
   try {
     console.log("🚀 Starting Twitter login session...")
 
-    // Check if we're in a development environment
-    if (process.env.NODE_ENV === "production") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Browser login is only available in development mode",
-          message: "For security reasons, browser login is disabled in production. Please use manual token entry.",
-        } as LoginSessionResult,
-        { status: 403 },
-      )
-    }
-
     // Launch browser in non-headless mode so user can see and interact
     browser = await puppeteer.launch({
-      headless: false, // User needs to see the browser to log in
+      headless: process.env.NODE_ENV === "production" ? "new" : false, // Headless in production, visible in dev
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
         "--disable-dev-shm-usage",
         "--disable-web-security",
-        "--start-maximized",
         "--disable-blink-features=AutomationControlled",
         "--disable-features=VizDisplayCompositor",
+        ...(process.env.NODE_ENV === "production"
+          ? ["--disable-gpu", "--no-first-run", "--no-zygote", "--single-process"]
+          : ["--start-maximized"]),
       ],
       ignoreHTTPSErrors: true,
-      defaultViewport: null, // Use full screen
+      defaultViewport: process.env.NODE_ENV === "production" ? { width: 1280, height: 720 } : null,
     })
 
     const page = await browser.newPage()
@@ -73,16 +63,27 @@ export async function POST(request: Request) {
     await page.waitForFunction(
       () => {
         const currentUrl = window.location.href
-        return (
+        const isLoggedIn =
           currentUrl.includes("/home") ||
           currentUrl.includes("/timeline") ||
           (currentUrl.includes("twitter.com") &&
             !currentUrl.includes("/login") &&
             !currentUrl.includes("/flow") &&
-            document.querySelector('[data-testid="primaryColumn"]') !== null)
-        )
+            (document.querySelector('[data-testid="primaryColumn"]') !== null ||
+              document.querySelector('[data-testid="AppTabBar_Home_Link"]') !== null ||
+              document.querySelector('[role="main"]') !== null))
+
+        // In production headless mode, we need to check for login completion differently
+        if (window.location.href.includes("/login") || window.location.href.includes("/flow")) {
+          return false
+        }
+
+        return isLoggedIn
       },
-      { timeout: 300000, polling: 1000 }, // 5 minutes timeout, check every second
+      {
+        timeout: process.env.NODE_ENV === "production" ? 120000 : 300000, // 2 min in prod, 5 min in dev
+        polling: 1000,
+      },
     )
 
     console.log("✅ Login detected, extracting cookies...")
@@ -121,7 +122,10 @@ export async function POST(request: Request) {
         auth_token: authToken,
         ct0: ct0Token || "",
       },
-      message: "Login successful! Session cookies extracted.",
+      message:
+        process.env.NODE_ENV === "production"
+          ? "Login successful! Session cookies extracted. Note: In production, the browser runs in headless mode."
+          : "Login successful! Session cookies extracted.",
     } as LoginSessionResult)
   } catch (error) {
     console.error("❌ Error during login session:", error)
