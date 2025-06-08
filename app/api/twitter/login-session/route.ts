@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
-import puppeteer from "puppeteer"
+import puppeteer from "puppeteer-core"
+import chromium from "@sparticuz/chromium"
 
 interface LoginSessionResult {
   success: boolean
@@ -17,22 +18,49 @@ export async function POST(request: Request) {
   try {
     console.log("🚀 Starting Twitter login session...")
 
-    // Launch browser in non-headless mode so user can see and interact
+    // Configure Chromium for serverless environment
+    const isProduction = process.env.NODE_ENV === "production"
+
+    if (isProduction) {
+      // Configure chromium for serverless
+      chromium.setHeadlessMode = true
+      chromium.setGraphicsMode = false
+    }
+
+    // Launch browser with appropriate configuration
     browser = await puppeteer.launch({
-      headless: process.env.NODE_ENV === "production" ? "new" : false, // Headless in production, visible in dev
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-web-security",
-        "--disable-blink-features=AutomationControlled",
-        "--disable-features=VizDisplayCompositor",
-        ...(process.env.NODE_ENV === "production"
-          ? ["--disable-gpu", "--no-first-run", "--no-zygote", "--single-process"]
-          : ["--start-maximized"]),
-      ],
+      args: isProduction
+        ? [
+            ...chromium.args,
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-web-security",
+            "--disable-blink-features=AutomationControlled",
+            "--disable-features=VizDisplayCompositor",
+            "--disable-gpu",
+            "--no-first-run",
+            "--no-zygote",
+            "--single-process",
+            "--disable-extensions",
+            "--disable-default-apps",
+            "--disable-background-timer-throttling",
+            "--disable-backgrounding-occluded-windows",
+            "--disable-renderer-backgrounding",
+          ]
+        : [
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-web-security",
+            "--start-maximized",
+            "--disable-blink-features=AutomationControlled",
+            "--disable-features=VizDisplayCompositor",
+          ],
+      defaultViewport: isProduction ? chromium.defaultViewport : null,
+      executablePath: isProduction ? await chromium.executablePath() : undefined,
+      headless: isProduction ? chromium.headless : false,
       ignoreHTTPSErrors: true,
-      defaultViewport: process.env.NODE_ENV === "production" ? { width: 1280, height: 720 } : null,
     })
 
     const page = await browser.newPage()
@@ -57,34 +85,47 @@ export async function POST(request: Request) {
       timeout: 30000,
     })
 
-    console.log("⏳ Waiting for user to complete login...")
+    if (isProduction) {
+      // In production headless mode, we need to simulate the login process
+      // This is a simplified approach - in reality, you'd need to handle the login form
+      console.log("⚠️ Production headless mode detected. Manual token entry recommended.")
 
-    // Wait for the user to complete login by checking for the home page or profile
-    await page.waitForFunction(
-      () => {
-        const currentUrl = window.location.href
-        const isLoggedIn =
-          currentUrl.includes("/home") ||
-          currentUrl.includes("/timeline") ||
-          (currentUrl.includes("twitter.com") &&
-            !currentUrl.includes("/login") &&
-            !currentUrl.includes("/flow") &&
-            (document.querySelector('[data-testid="primaryColumn"]') !== null ||
-              document.querySelector('[data-testid="AppTabBar_Home_Link"]') !== null ||
-              document.querySelector('[role="main"]') !== null))
+      // Wait a bit to see if we're already logged in or can detect login elements
+      await page.waitForTimeout(5000)
 
-        // In production headless mode, we need to check for login completion differently
-        if (window.location.href.includes("/login") || window.location.href.includes("/flow")) {
-          return false
-        }
+      // Check if we're already logged in
+      const isAlreadyLoggedIn = await page.evaluate(() => {
+        return !window.location.href.includes("/login") && !window.location.href.includes("/flow")
+      })
 
-        return isLoggedIn
-      },
-      {
-        timeout: process.env.NODE_ENV === "production" ? 120000 : 300000, // 2 min in prod, 5 min in dev
-        polling: 1000,
-      },
-    )
+      if (!isAlreadyLoggedIn) {
+        throw new Error("Headless login not fully implemented. Please use manual token entry in production.")
+      }
+    } else {
+      console.log("⏳ Waiting for user to complete login...")
+
+      // Wait for the user to complete login by checking for the home page or profile
+      await page.waitForFunction(
+        () => {
+          const currentUrl = window.location.href
+          const isLoggedIn =
+            currentUrl.includes("/home") ||
+            currentUrl.includes("/timeline") ||
+            (currentUrl.includes("twitter.com") &&
+              !currentUrl.includes("/login") &&
+              !currentUrl.includes("/flow") &&
+              (document.querySelector('[data-testid="primaryColumn"]') !== null ||
+                document.querySelector('[data-testid="AppTabBar_Home_Link"]') !== null ||
+                document.querySelector('[role="main"]') !== null))
+
+          return isLoggedIn
+        },
+        {
+          timeout: 300000, // 5 minutes in development
+          polling: 1000,
+        },
+      )
+    }
 
     console.log("✅ Login detected, extracting cookies...")
 
@@ -122,10 +163,9 @@ export async function POST(request: Request) {
         auth_token: authToken,
         ct0: ct0Token || "",
       },
-      message:
-        process.env.NODE_ENV === "production"
-          ? "Login successful! Session cookies extracted. Note: In production, the browser runs in headless mode."
-          : "Login successful! Session cookies extracted.",
+      message: isProduction
+        ? "Login successful! Session cookies extracted from headless browser."
+        : "Login successful! Session cookies extracted.",
     } as LoginSessionResult)
   } catch (error) {
     console.error("❌ Error during login session:", error)
