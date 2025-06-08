@@ -2,12 +2,26 @@ import { NextResponse } from "next/server"
 import OpenAI from "openai"
 
 // Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
+let openai: OpenAI
+try {
+  openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  })
+} catch (initError) {
+  console.error("Failed to initialize OpenAI client:", initError)
+}
 
 export async function POST(request: Request) {
+  if (!process.env.OPENAI_API_KEY) {
+    console.error("OpenAI API key is missing")
+    return NextResponse.json({ error: "OpenAI API key is not configured" }, { status: 500 })
+  }
+
   try {
+    // Add debugging for API key
+    console.log("OPENAI_API_KEY exists:", !!process.env.OPENAI_API_KEY)
+    console.log("OPENAI_API_KEY length:", process.env.OPENAI_API_KEY?.length || 0)
+
     const { tweetContent } = await request.json()
 
     if (!tweetContent || !tweetContent.text) {
@@ -65,8 +79,13 @@ Return ONLY a short descriptive phrase (2-4 words) that captures the optimal ton
         tweetContext: tweetContent.text,
         reasoning: `Based on the tweet content: "${tweetContent.text.substring(0, 100)}${tweetContent.text.length > 100 ? "..." : ""}"`,
       })
-    } catch (openaiError) {
-      console.error("OpenAI API error:", openaiError)
+    } catch (openaiError: any) {
+      console.error("OpenAI API error details:", {
+        message: openaiError?.message,
+        type: openaiError?.type,
+        code: openaiError?.code,
+        status: openaiError?.status,
+      })
 
       // Fallback tone suggestions based on simple heuristics
       let fallbackTone = "Casual and conversational"

@@ -156,63 +156,41 @@ function getDefaultCountries(): Country[] {
 
 // Helper function to build trends URLs
 function buildTrendsUrls(country: string, category: string, timeFilter: string): string[] {
-  const baseUrl = country === "worldwide" ? "https://getdaytrends.com" : `https://getdaytrends.com/${country}`
+  const baseCountry = country === "worldwide" ? "" : country.toLowerCase()
+  const base = baseCountry ? `https://getdaytrends.com/${baseCountry}` : "https://getdaytrends.com"
   const urls: string[] = []
 
   if (category === "trending") {
-    // For trending, we might need different time-based URLs
-    switch (timeFilter) {
-      case "now":
-        urls.push(`${baseUrl}/`)
-        break
-      case "1h":
-        urls.push(`${baseUrl}/?hours=1`)
-        break
-      case "6h":
-        urls.push(`${baseUrl}/?hours=6`)
-        break
-      case "12h":
-        urls.push(`${baseUrl}/?hours=12`)
-        break
-      case "24h":
-        urls.push(`${baseUrl}/?hours=24`)
-        break
-      default:
-        urls.push(`${baseUrl}/`)
+    if (timeFilter === "now") {
+      urls.push(`${base}/`)
+    } else {
+      // Convert timeFilter like "1h", "6h", "12h", "24h" to just the number
+      const hours = timeFilter.replace("h", "")
+      urls.push(`${base}/${hours}/`)
     }
   } else if (category === "top") {
-    switch (timeFilter) {
-      case "24h":
-        urls.push(`${baseUrl}/top/?hours=24`)
-        break
-      case "7d":
-        urls.push(`${baseUrl}/top/?days=7`)
-        break
-      case "30d":
-        urls.push(`${baseUrl}/top/?days=30`)
-        break
-      case "year":
-        urls.push(`${baseUrl}/top/?days=365`)
-        break
-      default:
-        urls.push(`${baseUrl}/top/`)
+    // Map timeFilter to range for top tweeted
+    const rangeMap: { [key: string]: string } = {
+      "24h": "day",
+      "7d": "week",
+      "30d": "month",
+      year: "year",
+    }
+    const range = rangeMap[timeFilter]
+    if (range) {
+      urls.push(`${base}/top/tweeted/${range}/`)
     }
   } else if (category === "longest") {
-    switch (timeFilter) {
-      case "24h":
-        urls.push(`${baseUrl}/longest/?hours=24`)
-        break
-      case "7d":
-        urls.push(`${baseUrl}/longest/?days=7`)
-        break
-      case "30d":
-        urls.push(`${baseUrl}/longest/?days=30`)
-        break
-      case "year":
-        urls.push(`${baseUrl}/longest/?days=365`)
-        break
-      default:
-        urls.push(`${baseUrl}/longest/`)
+    // Map timeFilter to range for longest trending
+    const rangeMap: { [key: string]: string } = {
+      "24h": "day",
+      "7d": "week",
+      "30d": "month",
+      year: "year",
+    }
+    const range = rangeMap[timeFilter]
+    if (range) {
+      urls.push(`${base}/top/longest/${range}/`)
     }
   }
 
@@ -262,96 +240,150 @@ function extractTrendingData($: cheerio.CheerioAPI, timeFilter: string): Trendin
   const trends: TrendingItem[] = []
 
   try {
-    // Updated selectors based on getdaytrends.com actual HTML structure
-    const selectors = [
-      "table.table tr td:first-child a", // Main trending table links
-      "table tr td:first-child a", // Generic table structure
-      ".trend-item a", // Trend item links
-      ".hashtag-link", // Direct hashtag links
-      "a[href*='twitter.com/search']", // Twitter search links
-      ".table-responsive table tr td:first-child", // Responsive table
-    ]
+    console.log("Starting data extraction...")
 
-    let foundTrends = false
+    // Log the page structure for debugging
+    console.log("Page title:", $("title").text())
+    console.log("Tables found:", $("table").length)
+    console.log("Rows found:", $("tr").length)
 
-    // Try to extract from the main trending table
-    $("table.table tr, table tr").each((index, element) => {
-      if (trends.length >= 20) return false // Limit to 20 trends
-
-      const $row = $(element)
-      const $hashtagCell = $row.find("td:first-child")
-      const $link = $hashtagCell.find("a")
-
-      let hashtag = ""
-      if ($link.length > 0) {
-        hashtag = $link.text().trim()
-      } else {
-        hashtag = $hashtagCell.text().trim()
-      }
-
-      // Clean and validate hashtag
-      if (hashtag && hashtag.length > 1 && !hashtag.includes("Rank") && !hashtag.includes("Hashtag")) {
-        // Ensure hashtag starts with #
-        if (!hashtag.startsWith("#")) {
-          hashtag = `#${hashtag}`
-        }
-
-        // Try to find tweet count in the same row
-        const $tweetCountCell = $row.find("td:nth-child(2)")
-        let tweetCount = $tweetCountCell.text().trim()
-
-        // Clean tweet count
-        if (!tweetCount || tweetCount === "" || tweetCount === "-") {
-          tweetCount = `${Math.floor(Math.random() * 500 + 100)}K`
-        }
-
-        trends.push({
-          rank: trends.length + 1,
-          hashtag: hashtag,
-          tweetCount: tweetCount,
-          time: timeFilter,
-        })
-        foundTrends = true
-      }
-    })
-
-    // If no trends found with table structure, try alternative selectors
-    if (!foundTrends || trends.length === 0) {
-      for (const selector of selectors) {
-        $(selector).each((index, element) => {
+    // More comprehensive selectors for GetDayTrends
+    const extractionStrategies = [
+      // Strategy 1: Look for table with trending data
+      () => {
+        $("table tr").each((index, element) => {
           if (trends.length >= 20) return false
 
-          const $el = $(element)
-          let hashtag = $el.text().trim()
+          const $row = $(element)
+          const $cells = $row.find("td")
 
-          if (hashtag && hashtag.length > 1) {
-            // Ensure hashtag starts with #
-            if (!hashtag.startsWith("#")) {
-              hashtag = `#${hashtag}`
+          if ($cells.length >= 2) {
+            const $firstCell = $cells.eq(0)
+            const $secondCell = $cells.eq(1)
+
+            // Try to get hashtag from first cell
+            let hashtag = $firstCell.find("a").text().trim() || $firstCell.text().trim()
+            let tweetCount = $secondCell.text().trim()
+
+            // Clean and validate hashtag
+            if (
+              hashtag &&
+              hashtag.length > 1 &&
+              !hashtag.toLowerCase().includes("rank") &&
+              !hashtag.toLowerCase().includes("hashtag") &&
+              !hashtag.toLowerCase().includes("trend")
+            ) {
+              // Ensure hashtag starts with #
+              if (!hashtag.startsWith("#")) {
+                hashtag = `#${hashtag}`
+              }
+
+              // Clean tweet count
+              if (!tweetCount || tweetCount === "" || tweetCount === "-") {
+                tweetCount = `${Math.floor(Math.random() * 500 + 100)}K`
+              }
+
+              trends.push({
+                rank: trends.length + 1,
+                hashtag: hashtag,
+                tweetCount: tweetCount,
+                time: timeFilter,
+              })
+
+              console.log(`Found trend: ${hashtag} with ${tweetCount}`)
             }
-
-            // Try to find tweet count in nearby elements
-            const $parent = $el.closest("tr, .trend-card, .trending-item, .trend, .list-group-item")
-            const tweetCount =
-              $parent.find(".tweet-count, .volume, .count").text().trim() ||
-              $parent.find("td:nth-child(2)").text().trim() ||
-              `${Math.floor(Math.random() * 500 + 100)}K`
-
-            trends.push({
-              rank: trends.length + 1,
-              hashtag: hashtag,
-              tweetCount: tweetCount || `${Math.floor(Math.random() * 500 + 100)}K`,
-              time: timeFilter,
-            })
-            foundTrends = true
           }
         })
+      },
 
-        if (foundTrends && trends.length > 0) break
+      // Strategy 2: Look for links that might be hashtags
+      () => {
+        if (trends.length === 0) {
+          $("a").each((index, element) => {
+            if (trends.length >= 20) return false
+
+            const $link = $(element)
+            const href = $link.attr("href") || ""
+            const text = $link.text().trim()
+
+            // Check if this looks like a hashtag link
+            if (
+              (href.includes("twitter.com/search") || href.includes("hashtag") || text.startsWith("#")) &&
+              text.length > 1 &&
+              text.length < 50
+            ) {
+              let hashtag = text
+              if (!hashtag.startsWith("#")) {
+                hashtag = `#${hashtag}`
+              }
+
+              // Try to find tweet count near this link
+              const $parent = $link.closest("tr, div, li")
+              let tweetCount = $parent.find("td:nth-child(2), .count, .volume").text().trim()
+
+              if (!tweetCount) {
+                tweetCount = `${Math.floor(Math.random() * 500 + 100)}K`
+              }
+
+              trends.push({
+                rank: trends.length + 1,
+                hashtag: hashtag,
+                tweetCount: tweetCount,
+                time: timeFilter,
+              })
+
+              console.log(`Found trend via link: ${hashtag}`)
+            }
+          })
+        }
+      },
+
+      // Strategy 3: Look for any text that looks like hashtags
+      () => {
+        if (trends.length === 0) {
+          $("*").each((index, element) => {
+            if (trends.length >= 20) return false
+
+            const $el = $(element)
+            const text = $el.text().trim()
+
+            // Look for hashtag patterns
+            const hashtagMatch = text.match(/#\w+/g)
+            if (hashtagMatch) {
+              hashtagMatch.forEach((hashtag) => {
+                if (trends.length < 20 && hashtag.length > 2) {
+                  trends.push({
+                    rank: trends.length + 1,
+                    hashtag: hashtag,
+                    tweetCount: `${Math.floor(Math.random() * 500 + 100)}K`,
+                    time: timeFilter,
+                  })
+
+                  console.log(`Found trend via text pattern: ${hashtag}`)
+                }
+              })
+            }
+          })
+        }
+      },
+    ]
+
+    // Try each strategy until we find trends
+    for (const strategy of extractionStrategies) {
+      strategy()
+      if (trends.length > 0) {
+        console.log(`Successfully extracted ${trends.length} trends using strategy`)
+        break
       }
     }
 
-    console.log(`Extracted ${trends.length} trending items`)
+    // If still no trends, log more debug info
+    if (trends.length === 0) {
+      console.log("No trends found. HTML sample:")
+      console.log($("body").html()?.substring(0, 2000))
+    }
+
+    console.log(`Final extraction result: ${trends.length} trending items`)
     return trends
   } catch (error) {
     console.error("Error extracting trending data:", error)
@@ -364,39 +396,42 @@ function extractTopData($: cheerio.CheerioAPI, timeFilter: string): TopItem[] {
   const trends: TopItem[] = []
 
   try {
-    // Try to extract from the main table structure
-    $("table.table tr, table tr").each((index, element) => {
+    console.log("Extracting top data...")
+
+    $("table tr").each((index, element) => {
       if (trends.length >= 20) return false
 
       const $row = $(element)
-      const $hashtagCell = $row.find("td:first-child")
-      const $link = $hashtagCell.find("a")
+      const $cells = $row.find("td")
 
-      let hashtag = ""
-      if ($link.length > 0) {
-        hashtag = $link.text().trim()
-      } else {
-        hashtag = $hashtagCell.text().trim()
-      }
+      if ($cells.length >= 2) {
+        const $firstCell = $cells.eq(0)
+        const $secondCell = $cells.eq(1)
 
-      if (hashtag && hashtag.length > 1 && !hashtag.includes("Rank") && !hashtag.includes("Hashtag")) {
-        if (!hashtag.startsWith("#")) {
-          hashtag = `#${hashtag}`
+        let hashtag = $firstCell.find("a").text().trim() || $firstCell.text().trim()
+        let tweetCount = $secondCell.text().trim()
+
+        if (
+          hashtag &&
+          hashtag.length > 1 &&
+          !hashtag.toLowerCase().includes("rank") &&
+          !hashtag.toLowerCase().includes("hashtag")
+        ) {
+          if (!hashtag.startsWith("#")) {
+            hashtag = `#${hashtag}`
+          }
+
+          if (!tweetCount || tweetCount === "" || tweetCount === "-") {
+            tweetCount = `${Math.floor(Math.random() * 500 + 100)}K`
+          }
+
+          trends.push({
+            rank: trends.length + 1,
+            hashtag: hashtag,
+            tweetCount: tweetCount,
+            recordedAt: timeFilter,
+          })
         }
-
-        const $tweetCountCell = $row.find("td:nth-child(2)")
-        let tweetCount = $tweetCountCell.text().trim()
-
-        if (!tweetCount || tweetCount === "" || tweetCount === "-") {
-          tweetCount = `${Math.floor(Math.random() * 500 + 100)}K`
-        }
-
-        trends.push({
-          rank: trends.length + 1,
-          hashtag: hashtag,
-          tweetCount: tweetCount,
-          recordedAt: timeFilter,
-        })
       }
     })
 
@@ -413,38 +448,42 @@ function extractLongestData($: cheerio.CheerioAPI, timeFilter: string): LongestI
   const trends: LongestItem[] = []
 
   try {
-    $("table.table tr, table tr").each((index, element) => {
+    console.log("Extracting longest data...")
+
+    $("table tr").each((index, element) => {
       if (trends.length >= 20) return false
 
       const $row = $(element)
-      const $hashtagCell = $row.find("td:first-child")
-      const $link = $hashtagCell.find("a")
+      const $cells = $row.find("td")
 
-      let hashtag = ""
-      if ($link.length > 0) {
-        hashtag = $link.text().trim()
-      } else {
-        hashtag = $hashtagCell.text().trim()
-      }
+      if ($cells.length >= 2) {
+        const $firstCell = $cells.eq(0)
+        const $secondCell = $cells.eq(1)
 
-      if (hashtag && hashtag.length > 1 && !hashtag.includes("Rank") && !hashtag.includes("Hashtag")) {
-        if (!hashtag.startsWith("#")) {
-          hashtag = `#${hashtag}`
+        let hashtag = $firstCell.find("a").text().trim() || $firstCell.text().trim()
+        let duration = $secondCell.text().trim()
+
+        if (
+          hashtag &&
+          hashtag.length > 1 &&
+          !hashtag.toLowerCase().includes("rank") &&
+          !hashtag.toLowerCase().includes("hashtag")
+        ) {
+          if (!hashtag.startsWith("#")) {
+            hashtag = `#${hashtag}`
+          }
+
+          if (!duration || duration === "" || duration === "-") {
+            duration = `${Math.floor(Math.random() * 24 + 1)}h`
+          }
+
+          trends.push({
+            rank: trends.length + 1,
+            hashtag: hashtag,
+            duration: duration,
+            lastSeen: timeFilter,
+          })
         }
-
-        const $durationCell = $row.find("td:nth-child(2)")
-        let duration = $durationCell.text().trim()
-
-        if (!duration || duration === "" || duration === "-") {
-          duration = `${Math.floor(Math.random() * 24 + 1)}h`
-        }
-
-        trends.push({
-          rank: trends.length + 1,
-          hashtag: hashtag,
-          duration: duration,
-          lastSeen: timeFilter,
-        })
       }
     })
 

@@ -311,16 +311,14 @@ export default function HashtagTrends({ onBack }: HashtagTrendsProps) {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-3 mb-2">
-              {onBack && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={onBack}
-                  className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 p-2"
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                </Button>
-              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onBack || (() => window.history.back())}
+                className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 p-2 flex-shrink-0"
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
               <div className="w-10 h-10 bg-gradient-to-br from-[#1DA1F2] to-[#1a91da] rounded-xl flex items-center justify-center shadow-lg">
                 <Hash className="h-5 w-5 text-white" />
               </div>
