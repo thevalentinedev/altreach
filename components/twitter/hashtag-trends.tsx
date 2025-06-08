@@ -20,7 +20,6 @@ import {
   CheckCircle,
   Sparkles,
   ArrowLeft,
-  ExternalLink,
   BarChart3,
 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -511,15 +510,6 @@ export default function HashtagTrends({ onBack }: HashtagTrendsProps) {
                         </div>
                       </div>
                       <div className="flex items-center gap-2 flex-shrink-0">
-                        <Button
-                          onClick={(e) => handleTwitterClick(item.twitterSearchURL, e)}
-                          size="sm"
-                          variant="outline"
-                          className="h-8 px-3 text-xs font-medium touch-manipulation border-[#1DA1F2] text-[#1DA1F2] hover:bg-blue-50 dark:hover:bg-blue-900/20"
-                        >
-                          <ExternalLink className="h-3 w-3 mr-1" />
-                          <span className="hidden sm:inline">View</span>
-                        </Button>
                         <Button
                           onClick={(e) => handleAIClick(item.hashtag, e)}
                           size="sm"
