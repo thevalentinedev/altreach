@@ -305,6 +305,16 @@ export default function HashtagTrends({ onBack }: HashtagTrendsProps) {
 
   const currentData = getCurrentData()
 
+  // Handle back button click
+  const handleBackClick = () => {
+    if (onBack) {
+      onBack()
+    } else {
+      // Fallback if no onBack prop is provided
+      window.history.back()
+    }
+  }
+
   return (
     <Card className="w-full max-w-6xl mx-auto shadow-lg border-0 dark:border-slate-800 bg-white dark:bg-slate-950 rounded-xl overflow-hidden">
       <CardHeader className="pb-4 sm:pb-6 border-b border-slate-100 dark:border-slate-800 px-4 sm:px-6">
@@ -314,7 +324,7 @@ export default function HashtagTrends({ onBack }: HashtagTrendsProps) {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={onBack || (() => window.history.back())}
+                onClick={handleBackClick}
                 className="text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 p-2 flex-shrink-0"
               >
                 <ArrowLeft className="h-4 w-4" />

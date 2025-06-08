@@ -124,7 +124,9 @@ const PlatformSelector = ({
             return (
               <button
                 key={platform.id}
-                onClick={() => onPlatformChange(platform.id)}
+                onClick={() => {
+                  onPlatformChange(platform.id)
+                }}
                 className={`relative z-10 flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-2 px-2 sm:px-4 py-3 rounded-lg font-medium transition-colors duration-200 flex-1 min-h-[48px] touch-manipulation ${
                   isSelected
                     ? `${platform.color} dark:text-blue-400`
@@ -435,6 +437,7 @@ export default function HomePage() {
   const [rateLimitTimeRemaining, setRateLimitTimeRemaining] = useState(0)
 
   const [currentLinkedInView, setCurrentLinkedInView] = useState<LinkedInView>("comments")
+  const [currentView, setCurrentView] = useState<"comments" | "create" | "hashtags">("comments")
 
   const toneOptions: ToneOption[] = [
     { value: "supportive", label: "Supportive" },
@@ -965,7 +968,13 @@ export default function HomePage() {
       <main className="py-6 px-4 sm:py-8 sm:px-4 lg:py-12">
         <div className="container max-w-5xl mx-auto">
           {/* Platform Selector */}
-          <PlatformSelector selectedPlatform={selectedPlatform} onPlatformChange={setSelectedPlatform} />
+          <PlatformSelector
+            selectedPlatform={selectedPlatform}
+            onPlatformChange={(platform) => {
+              setSelectedPlatform(platform)
+              setCurrentView("comments")
+            }}
+          />
 
           {/* Content Area with Animation */}
           <div className="relative">
@@ -1582,7 +1591,7 @@ export default function HomePage() {
 
             {/* Twitter Content */}
             <AnimatedContent isVisible={selectedPlatform === "twitter"}>
-              <TwitterInput />
+              <TwitterInput currentView={currentView} setCurrentView={setCurrentView} />
             </AnimatedContent>
 
             {/* Instagram Content */}

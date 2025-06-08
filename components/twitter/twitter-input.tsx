@@ -141,9 +141,25 @@ const cacheComments = (
   }
 }
 
-export default function TwitterInput() {
+interface TwitterInputProps {
+  currentView?: "comments" | "create" | "hashtags"
+  setCurrentView?: (view: "comments" | "create" | "hashtags") => void
+}
+
+export default function TwitterInput({
+  currentView: externalView,
+  setCurrentView: setExternalView,
+}: TwitterInputProps) {
   // View state
-  const [currentView, setCurrentView] = useState<"comments" | "create" | "hashtags">("comments")
+  const [internalCurrentView, setInternalCurrentView] = useState<"comments" | "create" | "hashtags">("comments")
+  const currentView = externalView || internalCurrentView
+  const setCurrentView = (view: "comments" | "create" | "hashtags") => {
+    if (setExternalView) {
+      setExternalView(view)
+    } else {
+      setInternalCurrentView(view)
+    }
+  }
 
   // Authentication state
   const [authState, setAuthState] = useState<AuthState>("checking")
@@ -931,7 +947,7 @@ export default function TwitterInput() {
 
   // Render hashtags view
   if (currentView === "hashtags") {
-    return <HashtagTrends />
+    return <HashtagTrends onBack={() => setCurrentView("comments")} />
   }
 
   // Render content creation view
