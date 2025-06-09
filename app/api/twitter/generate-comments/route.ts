@@ -49,7 +49,6 @@ interface GenerateCommentsRequest {
     text: string
     author?: string | null
     username?: string | null
-    images?: string[] // Add images array
   }
   tone: string
   length: "shorter" | "longer"
@@ -64,13 +63,7 @@ interface GeneratedComment {
 }
 
 // Helper function to determine the appropriate model based on content complexity
-function determineOptimalModel(text: string, isComplexRequest: boolean, hasImages = false): string {
-  // Always use GPT-4o for image analysis
-  if (hasImages) {
-    console.log("Using GPT-4o for image analysis")
-    return "gpt-4o"
-  }
-
+function determineOptimalModel(text: string, isComplexRequest: boolean): string {
   // Default to GPT-3.5-turbo for most requests
   let model = "gpt-3.5-turbo-1106"
 
@@ -94,7 +87,7 @@ function determineOptimalModel(text: string, isComplexRequest: boolean, hasImage
 
 export async function POST(request: Request) {
   try {
-    // Rate limiting check (keep existing code)
+    // Rate limiting check
     const clientId = getClientId(request)
     const rateLimitResult = checkRateLimit(clientId)
 
@@ -124,6 +117,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Tweet content is required" }, { status: 400 })
     }
 
+    if (!tone) {
+      // Tone can be empty now, handled in prompt
+    }
+
     // Validate variations
     const numVariations = variations || 3
     if (numVariations < 1 || numVariations > 5) {
@@ -131,12 +128,9 @@ export async function POST(request: Request) {
     }
 
     try {
-      // Check if we have images
-      const hasImages = tweetContent.images && tweetContent.images.length > 0
-
       // Build the system prompt
       const systemPrompt = `You are a social media copywriter specializing in Twitter/X replies. 
-Given a tweet${hasImages ? " with images" : ""}, first analyze its content to determine the most appropriate tone for a reply, then generate ${numVariations} comment variation${
+Given a tweet, first analyze its content to determine the most appropriate tone for a reply, then generate ${numVariations} comment variation${
         numVariations > 1 ? "s" : ""
       } using that tone (unless a specific tone is requested).
 
@@ -151,7 +145,6 @@ Guidelines:
 - Sound authentic and human, not generic or AI-generated
 - Avoid generic phrases like "Great post!" or "Thanks for sharing!"
 - Respond directly to the content of the tweet
-${hasImages ? "- Consider the visual content in the images when crafting your response" : ""}
 
 ${instructions ? `Additional instructions: ${instructions}` : ""}
 
@@ -174,43 +167,15 @@ ${tone ? `Generate ${numVariations} ${tone} reply variation${numVariations > 1 ?
         (instructions.length > 100 || instructions.includes("technical") || instructions.includes("analyze"))
 
       // Determine the optimal model
-      const modelToUse = determineOptimalModel(tweetContent.text, isComplexRequest, hasImages)
-
-      // Create messages array - handle images if present
-      const messages: any[] = [{ role: "system", content: systemPrompt }]
-
-      if (hasImages && tweetContent.images) {
-        // Create vision message with images
-        const imageContent = tweetContent.images.map((imageUrl) => ({
-          type: "image_url",
-          image_url: {
-            url: imageUrl,
-            detail: "low", // Use low detail for faster processing and lower cost
-          },
-        }))
-
-        messages.push({
-          role: "user",
-          content: [
-            {
-              type: "text",
-              text: userPrompt,
-            },
-            ...imageContent,
-          ],
-        })
-      } else {
-        // Text-only message
-        messages.push({
-          role: "user",
-          content: userPrompt,
-        })
-      }
+      const modelToUse = determineOptimalModel(tweetContent.text, isComplexRequest)
 
       // Call OpenAI API
       const response = await openai.chat.completions.create({
         model: modelToUse,
-        messages: messages,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
         temperature: 0.8,
         response_format: { type: "json_object" },
         max_tokens: 1000,
@@ -222,7 +187,7 @@ ${tone ? `Generate ${numVariations} ${tone} reply variation${numVariations > 1 ?
         throw new Error("No content returned from OpenAI")
       }
 
-      // Parse the JSON response (keep existing parsing logic)
+      // Parse the JSON response
       let comments: string[] = []
       let detectedTone: string | null = null
       try {
@@ -283,14 +248,11 @@ ${tone ? `Generate ${numVariations} ${tone} reply variation${numVariations > 1 ?
         tweetContext: tweetContent.text,
         tone: detectedTone || tone,
         detectedTone: detectedTone,
-        hasImages: hasImages,
-        imageCount: hasImages ? tweetContent.images?.length || 0 : 0,
         metadata: {
           length,
           useEmoji,
           variations: numVariations,
           hasInstructions: !!instructions,
-          modelUsed: modelToUse,
         },
       })
     } catch (openaiError) {

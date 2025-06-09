@@ -1,4 +1,5 @@
 {
-  "/api/twitter/predefined-auth/route": "app/api/twitter/predefined-auth/route.js",
-  "/page": "app/page.js"
+  "/page": "app/page.js",
+  "/api/twitter/detect-tone/route": "app/api/twitter/detect-tone/route.js",
+  "/api/twitter/extract-with-session/route": "app/api/twitter/extract-with-session/route.js"
 }

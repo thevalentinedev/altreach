@@ -597,7 +597,6 @@ export default function TwitterInput({
             text: effectiveContent,
             author: tweetContent?.author || null,
             username: tweetContent?.username || null,
-            images: tweetContent?.images || [], // Include images
           },
           tone,
           length: commentLength,
@@ -1866,11 +1865,7 @@ export default function TwitterInput({
           {isGenerating ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
-              <span className="hidden sm:inline">
-                {tweetContent?.images && tweetContent.images.length > 0
-                  ? "Analyzing Images & Generating..."
-                  : "Generating Comments..."}
-              </span>
+              <span className="hidden sm:inline">Generating Comments...</span>
               <span className="sm:hidden">Generating...</span>
             </>
           ) : (
@@ -1878,7 +1873,6 @@ export default function TwitterInput({
               <Twitter className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
               <span className="hidden sm:inline">
                 Generate {variations} Comment{variations !== 1 ? "s" : ""}
-                {tweetContent?.images && tweetContent.images.length > 0 && " (with Image Analysis)"}
               </span>
               <span className="sm:hidden">Generate ({variations})</span>
             </>
