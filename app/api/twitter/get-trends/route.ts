@@ -1,56 +1,31 @@
 import { NextResponse } from "next/server"
 import * as cheerio from "cheerio"
-import { z } from "zod"
 
-// Define schemas for validation
-const CountrySchema = z.object({
-  label: z.string(),
-  slug: z.string(),
-  url: z.string().url(),
-})
+interface Country {
+  label: string
+  slug: string
+  url: string
+}
 
-const TrendingItemSchema = z.object({
-  rank: z.number(),
-  hashtag: z.string(),
-  tweetCount: z.string(),
-  time: z.string(),
-})
+interface TrendingItem {
+  rank: number
+  hashtag: string
+  tweetCount: string
+  time: string
+}
 
-const TopItemSchema = z.object({
-  rank: z.number(),
-  hashtag: z.string(),
-  tweetCount: z.string(),
-  recordedAt: z.string(),
-})
+interface TopItem {
+  rank: number
+  hashtag: string
+  tweetCount: string
+  recordedAt: string
+}
 
-const LongestItemSchema = z.object({
-  rank: z.number(),
-  hashtag: z.string(),
-  duration: z.string(),
-  lastSeen: z.string(),
-})
-
-const TrendsResponseSchema = z.object({
-  country: z.string(),
-  timeFilter: z.string(),
-  date: z.string(),
-  trending: z.array(TrendingItemSchema).optional(),
-  top: z.array(TopItemSchema).optional(),
-  longest: z.array(LongestItemSchema).optional(),
-  countries: z.array(CountrySchema).optional(),
-})
-
-type Country = z.infer<typeof CountrySchema>
-type TrendingItem = z.infer<typeof TrendingItemSchema>
-type TopItem = z.infer<typeof TopItemSchema>
-type LongestItem = z.infer<typeof LongestItemSchema>
-type TrendsResponse = z.infer<typeof TrendsResponseSchema>
-
-// Time filter options
-const TIME_FILTERS = {
-  trending: ["now", "1h", "6h", "12h", "24h"],
-  top: ["24h", "7d", "30d", "year"],
-  longest: ["24h", "7d", "30d", "year"],
+interface LongestItem {
+  rank: number
+  hashtag: string
+  duration: string
+  lastSeen: string
 }
 
 // Helper function to format country name
@@ -61,96 +36,76 @@ function formatCountryName(country: string): string {
     .join(" ")
 }
 
-// Helper function to extract countries from getdaytrends homepage
-async function extractCountriesFromSite(): Promise<Country[]> {
-  try {
-    console.log("Fetching countries from getdaytrends.com...")
-    const response = await fetch("https://getdaytrends.com/", {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-        Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
-        "Accept-Encoding": "gzip, deflate, br",
-        Connection: "keep-alive",
-        "Upgrade-Insecure-Requests": "1",
-      },
-    })
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    const html = await response.text()
-    const $ = cheerio.load(html)
-    const countries: Country[] = []
-
-    // Add worldwide as default
-    countries.push({
-      label: "Worldwide",
-      slug: "worldwide",
-      url: "https://getdaytrends.com/",
-    })
-
-    // Extract countries from the dropdown or navigation
-    // This selector might need adjustment based on the actual HTML structure
-    $('select[name="country"] option, .country-list a, .dropdown-menu a').each((_, element) => {
-      const $el = $(element)
-      const text = $el.text().trim()
-      const href = $el.attr("href") || $el.attr("value")
-
-      if (text && href && text !== "Worldwide") {
-        const slug = href.replace(/^\//, "").replace(/\/$/, "") || text.toLowerCase().replace(/\s+/g, "-")
-        countries.push({
-          label: text,
-          slug: slug,
-          url: `https://getdaytrends.com/${slug}/`,
-        })
-      }
-    })
-
-    // If no countries found with selectors, use fallback extraction
-    if (countries.length <= 1) {
-      // Try to find country links in the page
-      $('a[href*="/"]').each((_, element) => {
-        const $el = $(element)
-        const href = $el.attr("href")
-        const text = $el.text().trim()
-
-        if (href && text && href.match(/^\/[a-z-]+\/$/) && text.length > 2 && text.length < 30) {
-          const slug = href.replace(/^\//, "").replace(/\/$/, "")
-          if (!countries.some((c) => c.slug === slug)) {
-            countries.push({
-              label: text,
-              slug: slug,
-              url: `https://getdaytrends.com${href}`,
-            })
-          }
-        }
-      })
-    }
-
-    console.log(`Extracted ${countries.length} countries from getdaytrends.com`)
-    return countries.slice(0, 50) // Limit to 50 countries
-  } catch (error) {
-    console.error("Error extracting countries:", error)
-    return getDefaultCountries()
-  }
-}
-
-// Helper function to get default countries
+// Helper function to get default countries - EXACT list from getdaytrends.com
 function getDefaultCountries(): Country[] {
   return [
     { label: "Worldwide", slug: "worldwide", url: "https://getdaytrends.com/" },
-    { label: "United States", slug: "united-states", url: "https://getdaytrends.com/united-states/" },
-    { label: "United Kingdom", slug: "united-kingdom", url: "https://getdaytrends.com/united-kingdom/" },
-    { label: "Canada", slug: "canada", url: "https://getdaytrends.com/canada/" },
+    { label: "Algeria", slug: "algeria", url: "https://getdaytrends.com/algeria/" },
+    { label: "Argentina", slug: "argentina", url: "https://getdaytrends.com/argentina/" },
     { label: "Australia", slug: "australia", url: "https://getdaytrends.com/australia/" },
-    { label: "India", slug: "india", url: "https://getdaytrends.com/india/" },
-    { label: "Japan", slug: "japan", url: "https://getdaytrends.com/japan/" },
+    { label: "Austria", slug: "austria", url: "https://getdaytrends.com/austria/" },
+    { label: "Bahrain", slug: "bahrain", url: "https://getdaytrends.com/bahrain/" },
+    { label: "Belarus", slug: "belarus", url: "https://getdaytrends.com/belarus/" },
+    { label: "Belgium", slug: "belgium", url: "https://getdaytrends.com/belgium/" },
     { label: "Brazil", slug: "brazil", url: "https://getdaytrends.com/brazil/" },
-    { label: "Germany", slug: "germany", url: "https://getdaytrends.com/germany/" },
+    { label: "Canada", slug: "canada", url: "https://getdaytrends.com/canada/" },
+    { label: "Chile", slug: "chile", url: "https://getdaytrends.com/chile/" },
+    { label: "Colombia", slug: "colombia", url: "https://getdaytrends.com/colombia/" },
+    { label: "Denmark", slug: "denmark", url: "https://getdaytrends.com/denmark/" },
+    { label: "Dominican Republic", slug: "dominican-republic", url: "https://getdaytrends.com/dominican-republic/" },
+    { label: "Ecuador", slug: "ecuador", url: "https://getdaytrends.com/ecuador/" },
+    { label: "Egypt", slug: "egypt", url: "https://getdaytrends.com/egypt/" },
     { label: "France", slug: "france", url: "https://getdaytrends.com/france/" },
+    { label: "Germany", slug: "germany", url: "https://getdaytrends.com/germany/" },
+    { label: "Ghana", slug: "ghana", url: "https://getdaytrends.com/ghana/" },
+    { label: "Greece", slug: "greece", url: "https://getdaytrends.com/greece/" },
+    { label: "Guatemala", slug: "guatemala", url: "https://getdaytrends.com/guatemala/" },
+    { label: "India", slug: "india", url: "https://getdaytrends.com/india/" },
+    { label: "Indonesia", slug: "indonesia", url: "https://getdaytrends.com/indonesia/" },
+    { label: "Ireland", slug: "ireland", url: "https://getdaytrends.com/ireland/" },
+    { label: "Israel", slug: "israel", url: "https://getdaytrends.com/israel/" },
+    { label: "Italy", slug: "italy", url: "https://getdaytrends.com/italy/" },
+    { label: "Japan", slug: "japan", url: "https://getdaytrends.com/japan/" },
+    { label: "Jordan", slug: "jordan", url: "https://getdaytrends.com/jordan/" },
+    { label: "Kenya", slug: "kenya", url: "https://getdaytrends.com/kenya/" },
+    { label: "Korea", slug: "korea", url: "https://getdaytrends.com/korea/" },
+    { label: "Kuwait", slug: "kuwait", url: "https://getdaytrends.com/kuwait/" },
+    { label: "Latvia", slug: "latvia", url: "https://getdaytrends.com/latvia/" },
+    { label: "Lebanon", slug: "lebanon", url: "https://getdaytrends.com/lebanon/" },
+    { label: "Malaysia", slug: "malaysia", url: "https://getdaytrends.com/malaysia/" },
+    { label: "Mexico", slug: "mexico", url: "https://getdaytrends.com/mexico/" },
+    { label: "Netherlands", slug: "netherlands", url: "https://getdaytrends.com/netherlands/" },
+    { label: "New Zealand", slug: "new-zealand", url: "https://getdaytrends.com/new-zealand/" },
+    { label: "Nigeria", slug: "nigeria", url: "https://getdaytrends.com/nigeria/" },
+    { label: "Norway", slug: "norway", url: "https://getdaytrends.com/norway/" },
+    { label: "Oman", slug: "oman", url: "https://getdaytrends.com/oman/" },
+    { label: "Pakistan", slug: "pakistan", url: "https://getdaytrends.com/pakistan/" },
+    { label: "Panama", slug: "panama", url: "https://getdaytrends.com/panama/" },
+    { label: "Peru", slug: "peru", url: "https://getdaytrends.com/peru/" },
+    { label: "Philippines", slug: "philippines", url: "https://getdaytrends.com/philippines/" },
+    { label: "Poland", slug: "poland", url: "https://getdaytrends.com/poland/" },
+    { label: "Portugal", slug: "portugal", url: "https://getdaytrends.com/portugal/" },
+    { label: "Puerto Rico", slug: "puerto-rico", url: "https://getdaytrends.com/puerto-rico/" },
+    { label: "Qatar", slug: "qatar", url: "https://getdaytrends.com/qatar/" },
+    { label: "Russia", slug: "russia", url: "https://getdaytrends.com/russia/" },
+    { label: "Saudi Arabia", slug: "saudi-arabia", url: "https://getdaytrends.com/saudi-arabia/" },
+    { label: "Singapore", slug: "singapore", url: "https://getdaytrends.com/singapore/" },
+    { label: "South Africa", slug: "south-africa", url: "https://getdaytrends.com/south-africa/" },
+    { label: "Spain", slug: "spain", url: "https://getdaytrends.com/spain/" },
+    { label: "Sweden", slug: "sweden", url: "https://getdaytrends.com/sweden/" },
+    { label: "Switzerland", slug: "switzerland", url: "https://getdaytrends.com/switzerland/" },
+    { label: "Thailand", slug: "thailand", url: "https://getdaytrends.com/thailand/" },
+    { label: "Turkey", slug: "turkey", url: "https://getdaytrends.com/turkey/" },
+    { label: "Ukraine", slug: "ukraine", url: "https://getdaytrends.com/ukraine/" },
+    {
+      label: "United Arab Emirates",
+      slug: "united-arab-emirates",
+      url: "https://getdaytrends.com/united-arab-emirates/",
+    },
+    { label: "United Kingdom", slug: "united-kingdom", url: "https://getdaytrends.com/united-kingdom/" },
+    { label: "United States", slug: "united-states", url: "https://getdaytrends.com/united-states/" },
+    { label: "Venezuela", slug: "venezuela", url: "https://getdaytrends.com/venezuela/" },
+    { label: "Vietnam", slug: "vietnam", url: "https://getdaytrends.com/vietnam/" },
   ]
 }
 
@@ -596,38 +551,9 @@ export async function GET(request: Request) {
 
     console.log(`API Request - Country: ${country}, Category: ${category}, TimeFilter: ${timeFilter}`)
 
-    // Validate inputs
-    if (!["trending", "top", "longest"].includes(category)) {
-      return NextResponse.json({ error: "Invalid category. Must be 'trending', 'top', or 'longest'" }, { status: 400 })
-    }
-
-    const validTimeFilters = TIME_FILTERS[category as keyof typeof TIME_FILTERS]
-    if (!validTimeFilters.includes(timeFilter)) {
-      return NextResponse.json(
-        { error: `Invalid time filter for ${category}. Must be one of: ${validTimeFilters.join(", ")}` },
-        { status: 400 },
-      )
-    }
-
-    // Initialize response object
-    const trendsResponse: TrendsResponse = {
-      country: country === "worldwide" ? "Worldwide" : formatCountryName(country),
-      timeFilter,
-      date,
-      trending: [],
-      top: [],
-      longest: [],
-    }
-
-    // Extract countries if requested
+    // If requesting countries, return the hardcoded list
     if (includeCountries) {
-      try {
-        trendsResponse.countries = await extractCountriesFromSite()
-      } catch (error) {
-        console.error("Error extracting countries:", error)
-        trendsResponse.countries = getDefaultCountries()
-      }
-      return NextResponse.json(trendsResponse)
+      return NextResponse.json({ countries: getDefaultCountries() })
     }
 
     // Build URLs to try (multiple fallback URLs)
@@ -653,7 +579,9 @@ export async function GET(request: Request) {
     if (!html || !successUrl) {
       console.error("All URL attempts failed, using mock data")
       const mockResponse = {
-        ...trendsResponse,
+        country: country === "worldwide" ? "Worldwide" : formatCountryName(country),
+        timeFilter,
+        date,
         ...generateMockData(category, country, timeFilter),
       }
       return NextResponse.json(mockResponse)
@@ -665,6 +593,12 @@ export async function GET(request: Request) {
     try {
       console.log(`Attempting to extract ${category} data from HTML (${html.length} characters)`)
 
+      const trendsResponse: any = {
+        country: country === "worldwide" ? "Worldwide" : formatCountryName(country),
+        timeFilter,
+        date,
+      }
+
       if (category === "trending") {
         trendsResponse.trending = extractTrendingData($, timeFilter)
       } else if (category === "top") {
@@ -674,34 +608,34 @@ export async function GET(request: Request) {
       }
 
       // Log what we extracted
-      const currentData = trendsResponse[category as keyof TrendsResponse] as any[]
+      const currentData = trendsResponse[category] as any[]
       console.log(
         `Extracted ${currentData?.length || 0} ${category} items:`,
         currentData?.slice(0, 3).map((item) => item.hashtag) || [],
       )
+
+      // If no data was extracted, use mock data
+      if (!currentData || currentData.length === 0) {
+        console.log(`No ${category} data extracted, using mock data`)
+        const mockData = generateMockData(category, country, timeFilter)
+        Object.assign(trendsResponse, mockData)
+      }
+
+      return NextResponse.json(trendsResponse)
     } catch (extractionError) {
       console.error(`Error extracting ${category} data:`, extractionError)
       console.log("HTML sample:", html.substring(0, 1000))
 
-      // Only use mock data as last resort
+      // Use mock data as last resort
       const mockData = generateMockData(category, country, timeFilter)
-      Object.assign(trendsResponse, mockData)
+      const mockResponse = {
+        country: country === "worldwide" ? "Worldwide" : formatCountryName(country),
+        timeFilter,
+        date,
+        ...mockData,
+      }
+      return NextResponse.json(mockResponse)
     }
-
-    // If no data was extracted, use mock data
-    const currentData = trendsResponse[category as keyof TrendsResponse] as any[]
-    if (!currentData || currentData.length === 0) {
-      console.log(`No ${category} data extracted, using mock data`)
-      const mockData = generateMockData(category, country, timeFilter)
-      Object.assign(trendsResponse, mockData)
-    }
-
-    console.log(`Final ${category} data:`, {
-      count: (trendsResponse[category as keyof TrendsResponse] as any[])?.length || 0,
-      sample: (trendsResponse[category as keyof TrendsResponse] as any[])?.slice(0, 2) || [],
-    })
-
-    return NextResponse.json(trendsResponse)
   } catch (error) {
     console.error("Error in get-trends API:", error)
 
@@ -712,13 +646,10 @@ export async function GET(request: Request) {
     const timeFilter = url.searchParams.get("timeFilter") || "now"
     const date = new Date().toISOString().split("T")[0]
 
-    const mockResponse: TrendsResponse = {
+    const mockResponse = {
       country: country === "worldwide" ? "Worldwide" : formatCountryName(country),
       timeFilter,
       date,
-      trending: [],
-      top: [],
-      longest: [],
       ...generateMockData(category, country, timeFilter),
     }
 

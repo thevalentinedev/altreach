@@ -81,7 +81,7 @@ export default function HashtagTrends({ onBack }: HashtagTrendsProps) {
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
   const [trendsData, setTrendsData] = useState<TrendsResponse | null>(null)
-  const [countries, setCountries] = useState<Country[]>([])
+  const [countries, setCountries] = useState<Country[]>(getDefaultCountries())
   const [searchTerm, setSearchTerm] = useState<string>("")
   const [isLoadingCountries, setIsLoadingCountries] = useState<boolean>(false)
   const [copiedHashtag, setCopiedHashtag] = useState<string | null>(null)
@@ -115,66 +115,78 @@ export default function HashtagTrends({ onBack }: HashtagTrendsProps) {
     ],
   }
 
-  // Fetch countries on initial load
-  useEffect(() => {
-    const fetchCountries = async () => {
-      setIsLoadingCountries(true)
-      try {
-        console.log("Fetching countries...")
-
-        // Try to get from cache first
-        const cachedCountries = trendCache.get<Country[]>("countries")
-        if (cachedCountries && cachedCountries.length > 0) {
-          setCountries(cachedCountries)
-          setIsLoadingCountries(false)
-          return
-        }
-
-        const response = await fetch("/api/twitter/get-trends?includeCountries=true")
-        if (!response.ok) {
-          throw new Error(`Failed to fetch countries: ${response.status}`)
-        }
-        const data = await response.json()
-        console.log("Countries response:", data)
-
-        if (data.countries && Array.isArray(data.countries) && data.countries.length > 0) {
-          setCountries(data.countries)
-          // Cache countries for 24 hours
-          trendCache.set("countries", data.countries, 24 * 60 * 60 * 1000)
-          console.log(`Loaded ${data.countries.length} countries`)
-        } else {
-          console.log("No countries in response, using defaults")
-          const defaultCountries = getDefaultCountries()
-          setCountries(defaultCountries)
-          trendCache.set("countries", defaultCountries, 24 * 60 * 60 * 1000)
-        }
-      } catch (err) {
-        console.error("Error fetching countries:", err)
-        const defaultCountries = getDefaultCountries()
-        setCountries(defaultCountries)
-        trendCache.set("countries", defaultCountries, 24 * 60 * 60 * 1000)
-      } finally {
-        setIsLoadingCountries(false)
-      }
-    }
-
-    fetchCountries()
-  }, [])
-
-  // Get default countries
-  const getDefaultCountries = (): Country[] => [
-    { label: "Worldwide", slug: "worldwide", url: "https://getdaytrends.com/" },
-    { label: "United States", slug: "united-states", url: "https://getdaytrends.com/united-states/" },
-    { label: "United Kingdom", slug: "united-kingdom", url: "https://getdaytrends.com/united-kingdom/" },
-    { label: "Canada", slug: "canada", url: "https://getdaytrends.com/canada/" },
-    { label: "Australia", slug: "australia", url: "https://getdaytrends.com/australia/" },
-    { label: "India", slug: "india", url: "https://getdaytrends.com/india/" },
-    { label: "Japan", slug: "japan", url: "https://getdaytrends.com/japan/" },
-    { label: "Brazil", slug: "brazil", url: "https://getdaytrends.com/brazil/" },
-    { label: "Germany", slug: "germany", url: "https://getdaytrends.com/germany/" },
-    { label: "France", slug: "france", url: "https://getdaytrends.com/france/" },
-    { label: "Spain", slug: "spain", url: "https://getdaytrends.com/spain/" },
-  ]
+  // Get default countries - EXACT list from getdaytrends.com
+  function getDefaultCountries(): Country[] {
+    return [
+      { label: "Worldwide", slug: "worldwide", url: "https://getdaytrends.com/" },
+      { label: "Algeria", slug: "algeria", url: "https://getdaytrends.com/algeria/" },
+      { label: "Argentina", slug: "argentina", url: "https://getdaytrends.com/argentina/" },
+      { label: "Australia", slug: "australia", url: "https://getdaytrends.com/australia/" },
+      { label: "Austria", slug: "austria", url: "https://getdaytrends.com/austria/" },
+      { label: "Bahrain", slug: "bahrain", url: "https://getdaytrends.com/bahrain/" },
+      { label: "Belarus", slug: "belarus", url: "https://getdaytrends.com/belarus/" },
+      { label: "Belgium", slug: "belgium", url: "https://getdaytrends.com/belgium/" },
+      { label: "Brazil", slug: "brazil", url: "https://getdaytrends.com/brazil/" },
+      { label: "Canada", slug: "canada", url: "https://getdaytrends.com/canada/" },
+      { label: "Chile", slug: "chile", url: "https://getdaytrends.com/chile/" },
+      { label: "Colombia", slug: "colombia", url: "https://getdaytrends.com/colombia/" },
+      { label: "Denmark", slug: "denmark", url: "https://getdaytrends.com/denmark/" },
+      { label: "Dominican Republic", slug: "dominican-republic", url: "https://getdaytrends.com/dominican-republic/" },
+      { label: "Ecuador", slug: "ecuador", url: "https://getdaytrends.com/ecuador/" },
+      { label: "Egypt", slug: "egypt", url: "https://getdaytrends.com/egypt/" },
+      { label: "France", slug: "france", url: "https://getdaytrends.com/france/" },
+      { label: "Germany", slug: "germany", url: "https://getdaytrends.com/germany/" },
+      { label: "Ghana", slug: "ghana", url: "https://getdaytrends.com/ghana/" },
+      { label: "Greece", slug: "greece", url: "https://getdaytrends.com/greece/" },
+      { label: "Guatemala", slug: "guatemala", url: "https://getdaytrends.com/guatemala/" },
+      { label: "India", slug: "india", url: "https://getdaytrends.com/india/" },
+      { label: "Indonesia", slug: "indonesia", url: "https://getdaytrends.com/indonesia/" },
+      { label: "Ireland", slug: "ireland", url: "https://getdaytrends.com/ireland/" },
+      { label: "Israel", slug: "israel", url: "https://getdaytrends.com/israel/" },
+      { label: "Italy", slug: "italy", url: "https://getdaytrends.com/italy/" },
+      { label: "Japan", slug: "japan", url: "https://getdaytrends.com/japan/" },
+      { label: "Jordan", slug: "jordan", url: "https://getdaytrends.com/jordan/" },
+      { label: "Kenya", slug: "kenya", url: "https://getdaytrends.com/kenya/" },
+      { label: "Korea", slug: "korea", url: "https://getdaytrends.com/korea/" },
+      { label: "Kuwait", slug: "kuwait", url: "https://getdaytrends.com/kuwait/" },
+      { label: "Latvia", slug: "latvia", url: "https://getdaytrends.com/latvia/" },
+      { label: "Lebanon", slug: "lebanon", url: "https://getdaytrends.com/lebanon/" },
+      { label: "Malaysia", slug: "malaysia", url: "https://getdaytrends.com/malaysia/" },
+      { label: "Mexico", slug: "mexico", url: "https://getdaytrends.com/mexico/" },
+      { label: "Netherlands", slug: "netherlands", url: "https://getdaytrends.com/netherlands/" },
+      { label: "New Zealand", slug: "new-zealand", url: "https://getdaytrends.com/new-zealand/" },
+      { label: "Nigeria", slug: "nigeria", url: "https://getdaytrends.com/nigeria/" },
+      { label: "Norway", slug: "norway", url: "https://getdaytrends.com/norway/" },
+      { label: "Oman", slug: "oman", url: "https://getdaytrends.com/oman/" },
+      { label: "Pakistan", slug: "pakistan", url: "https://getdaytrends.com/pakistan/" },
+      { label: "Panama", slug: "panama", url: "https://getdaytrends.com/panama/" },
+      { label: "Peru", slug: "peru", url: "https://getdaytrends.com/peru/" },
+      { label: "Philippines", slug: "philippines", url: "https://getdaytrends.com/philippines/" },
+      { label: "Poland", slug: "poland", url: "https://getdaytrends.com/poland/" },
+      { label: "Portugal", slug: "portugal", url: "https://getdaytrends.com/portugal/" },
+      { label: "Puerto Rico", slug: "puerto-rico", url: "https://getdaytrends.com/puerto-rico/" },
+      { label: "Qatar", slug: "qatar", url: "https://getdaytrends.com/qatar/" },
+      { label: "Russia", slug: "russia", url: "https://getdaytrends.com/russia/" },
+      { label: "Saudi Arabia", slug: "saudi-arabia", url: "https://getdaytrends.com/saudi-arabia/" },
+      { label: "Singapore", slug: "singapore", url: "https://getdaytrends.com/singapore/" },
+      { label: "South Africa", slug: "south-africa", url: "https://getdaytrends.com/south-africa/" },
+      { label: "Spain", slug: "spain", url: "https://getdaytrends.com/spain/" },
+      { label: "Sweden", slug: "sweden", url: "https://getdaytrends.com/sweden/" },
+      { label: "Switzerland", slug: "switzerland", url: "https://getdaytrends.com/switzerland/" },
+      { label: "Thailand", slug: "thailand", url: "https://getdaytrends.com/thailand/" },
+      { label: "Turkey", slug: "turkey", url: "https://getdaytrends.com/turkey/" },
+      { label: "Ukraine", slug: "ukraine", url: "https://getdaytrends.com/ukraine/" },
+      {
+        label: "United Arab Emirates",
+        slug: "united-arab-emirates",
+        url: "https://getdaytrends.com/united-arab-emirates/",
+      },
+      { label: "United Kingdom", slug: "united-kingdom", url: "https://getdaytrends.com/united-kingdom/" },
+      { label: "United States", slug: "united-states", url: "https://getdaytrends.com/united-states/" },
+      { label: "Venezuela", slug: "venezuela", url: "https://getdaytrends.com/venezuela/" },
+      { label: "Vietnam", slug: "vietnam", url: "https://getdaytrends.com/vietnam/" },
+    ]
+  }
 
   // Fetch trends data
   const fetchTrends = async (useCache = true) => {
@@ -380,12 +392,7 @@ export default function HashtagTrends({ onBack }: HashtagTrendsProps) {
                     className="h-8"
                   />
                 </div>
-                {isLoadingCountries ? (
-                  <div className="flex items-center justify-center py-4">
-                    <Loader2 className="h-4 w-4 animate-spin text-[#1DA1F2] mr-2" />
-                    <span className="text-sm text-slate-500">Loading countries...</span>
-                  </div>
-                ) : filteredCountries.length > 0 ? (
+                {filteredCountries.length > 0 ? (
                   filteredCountries.map((c) => (
                     <SelectItem key={c.slug} value={c.slug}>
                       {c.label}

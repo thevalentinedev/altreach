@@ -389,6 +389,56 @@ export default function TwitterInput({
     }
   }
 
+  // Function to login with browser session
+  // const loginWithBrowser = async () => {
+  //   setIsLoggingIn(true)
+  //   setLoginError(null)
+  //   setAuthState("authenticating")
+
+  //   try {
+  //     console.log("🚀 Starting browser login session...")
+
+  //     const response = await fetch("/api/twitter/login-session", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //     })
+
+  //     const data = await safeParseResponse(response)
+
+  //     if (!response.ok || !data.success || data.error) {
+  //       const errorMessage = data.error || data.message || `Server error (${response.status})`
+  //       console.error("❌ Browser login failed:", errorMessage)
+  //       setLoginError(errorMessage)
+  //       setAuthState("unauthenticated")
+  //       return
+  //     }
+
+  //     if (data.cookies?.auth_token) {
+  //       saveAuthToCache(data.cookies.auth_token, data.cookies.ct0)
+  //       setLoginError(null)
+  //       console.log("✅ Browser login successful, tokens cached")
+  //     } else {
+  //       setLoginError("Browser login completed but could not extract session tokens")
+  //       setAuthState("unauthenticated")
+  //     }
+  //   } catch (error) {
+  //     console.error("❌ Error during browser login:", error)
+
+  //     if (error instanceof TypeError && error.message.includes("fetch")) {
+  //       setLoginError("Network error: Could not connect to the server. Please check your connection.")
+  //     } else if (error instanceof Error) {
+  //       setLoginError(`Request failed: ${error.message}`)
+  //     } else {
+  //       setLoginError("An unexpected error occurred during browser login. Please try again.")
+  //     }
+  //     setAuthState("unauthenticated")
+  //   } finally {
+  //     setIsLoggingIn(false)
+  //   }
+  // }
+
   // Helper to validate Twitter URLs
   const isValidTwitterUrl = (url: string): boolean => {
     if (!url.trim()) return false
