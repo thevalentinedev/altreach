@@ -1,6 +1,6 @@
 {
-  "/api/twitter/detect-tone/route": "app/api/twitter/detect-tone/route.js",
-  "/page": "app/page.js",
   "/api/twitter/extract-with-session/route": "app/api/twitter/extract-with-session/route.js",
-  "/api/twitter/generate-comments/route": "app/api/twitter/generate-comments/route.js"
+  "/api/twitter/detect-tone/route": "app/api/twitter/detect-tone/route.js",
+  "/api/twitter/generate-comments/route": "app/api/twitter/generate-comments/route.js",
+  "/page": "app/page.js"
 }
