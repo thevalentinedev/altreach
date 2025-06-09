@@ -1,0 +1,43 @@
+# Node modules
+node_modules/
+.pnpm/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Env files
+.env
+.env.*.local
+
+# Next.js build output
+.next/
+out/
+
+# OS-specific
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+
+# Puppeteer browser cache
+.cache/
+.puppeteer/
+
+# PM2 logs/dumps (if used)
+pids/
+*.pid
+*.seed
+*.pid.lock
+.pm2/
+
+# Optional: lockfiles you don't use
+yarn.lock
+package-lock.json
