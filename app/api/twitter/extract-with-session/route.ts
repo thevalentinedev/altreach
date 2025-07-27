@@ -119,37 +119,118 @@ export async function POST(request: Request) {
     // Navigate to the tweet URL with timeout
     await page.goto(url, {
       waitUntil: "networkidle2",
-      timeout: 20000, // Reduced timeout
+      timeout: 30000, // Increased timeout
     })
+    
+    // Wait a bit for the page to fully render
+    await new Promise(resolve => setTimeout(resolve, 3000))
+    
+    // Debug: Check if we're on the right page
+    const currentUrl = page.url()
+    console.log("📍 Current page URL:", currentUrl)
+    
+    // Debug: Check if we're redirected to login
+    if (currentUrl.includes('/login') || currentUrl.includes('/flow')) {
+      console.log("⚠️ Redirected to login page - authentication may have failed")
+      return NextResponse.json({
+        error: "Authentication failed - redirected to login page. Please refresh your session.",
+      } as TweetExtractionResult)
+    }
 
     console.log("⏳ Waiting for tweet content to render...")
 
-    // Wait for the main tweet content to render
-    await page.waitForSelector('div[data-testid="tweetText"]', {
-      timeout: 10000, // Reduced timeout
-    })
-
-    console.log("📝 Extracting tweet content...")
-
-    // Extract the main tweet text and images in parallel
-    const [tweetContent, imageUrls] = await Promise.all([
-      page.evaluate(() => {
-        const tweetElement = document.querySelector('div[data-testid="tweetText"]')
-        return tweetElement ? tweetElement.textContent?.trim() || null : null
-      }),
-      page.evaluate(() => {
-        const images: string[] = []
-        const imageContainers = document.querySelectorAll('div[data-testid="tweetPhoto"]')
-        imageContainers.forEach((container) => {
-          const img = container.querySelector("img")
-          if (img && img.src) {
-            const highResUrl = img.src.replace(/&name=\w+$/, "&name=large")
-            images.push(highResUrl)
+    // Wait for the main tweet content to render with multiple selectors
+    let tweetContent = null
+    let imageUrls: string[] = []
+    
+    try {
+      // Try multiple selectors for tweet content
+      const selectors = [
+        'div[data-testid="tweetText"]',
+        'div[data-testid="tweet"] div[lang]',
+        'article[data-testid="tweet"] div[lang]',
+        'div[data-testid="tweet"] span[dir="auto"]',
+        'article div[lang]',
+        'div[data-testid="tweet"] div[dir="auto"]'
+      ]
+      
+      for (const selector of selectors) {
+        try {
+          await page.waitForSelector(selector, { timeout: 5000 })
+          tweetContent = await page.evaluate((sel) => {
+            const element = document.querySelector(sel)
+            return element ? element.textContent?.trim() || null : null
+          }, selector)
+          
+          if (tweetContent) {
+            console.log(`✅ Found tweet content using selector: ${selector}`)
+            break
           }
-        })
+        } catch (error) {
+          console.log(`⚠️ Selector ${selector} not found, trying next...`)
+        }
+      }
+      
+      // Extract images with multiple selectors
+      imageUrls = await page.evaluate(() => {
+        const images: string[] = []
+        const imageSelectors = [
+          'div[data-testid="tweetPhoto"] img',
+          'article[data-testid="tweet"] img[src*="pbs.twimg.com"]',
+          'div[data-testid="tweet"] img[src*="pbs.twimg.com"]',
+          'img[src*="pbs.twimg.com"]'
+        ]
+        
+        for (const selector of imageSelectors) {
+          const imgElements = document.querySelectorAll(selector)
+          imgElements.forEach((img) => {
+            if (img instanceof HTMLImageElement && img.src) {
+              const highResUrl = img.src.replace(/&name=\w+$/, "&name=large")
+              if (!images.includes(highResUrl)) {
+                images.push(highResUrl)
+              }
+            }
+          })
+        }
         return images
-      }),
-    ])
+      })
+      
+    } catch (error) {
+      console.log("⚠️ Error during content extraction:", error)
+    }
+    
+    // Fallback: If no content found, try to extract any text content from the page
+    if (!tweetContent) {
+      console.log("🔄 Trying fallback content extraction...")
+      try {
+        tweetContent = await page.evaluate(() => {
+          // Look for any text content that might be the tweet
+          const possibleSelectors = [
+            'article[data-testid="tweet"]',
+            'div[data-testid="tweet"]',
+            'main article',
+            '[role="main"] article'
+          ]
+          
+          for (const selector of possibleSelectors) {
+            const element = document.querySelector(selector)
+            if (element) {
+              const text = element.textContent?.trim()
+              if (text && text.length > 10 && text.length < 1000) {
+                return text
+              }
+            }
+          }
+          return null
+        })
+        
+        if (tweetContent) {
+          console.log("✅ Found content using fallback method")
+        }
+      } catch (fallbackError) {
+        console.log("⚠️ Fallback extraction also failed:", fallbackError)
+      }
+    }
 
     console.log("🖼️ Extracted images:", imageUrls)
 

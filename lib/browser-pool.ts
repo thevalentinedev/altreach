@@ -129,12 +129,12 @@ class BrowserPool {
     )
     await page.setViewport({ width: 1280, height: 800 })
 
-    // Optimize page performance
+    // Optimize page performance - only block fonts to speed up loading
     await page.setRequestInterception(true)
     page.on("request", (req) => {
-      // Block unnecessary resources to speed up loading
+      // Block fonts to speed up loading, but allow stylesheets and images for proper rendering
       const resourceType = req.resourceType()
-      if (["stylesheet", "font", "image"].includes(resourceType)) {
+      if (["font"].includes(resourceType)) {
         req.abort()
       } else {
         req.continue()
