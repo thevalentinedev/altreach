@@ -449,6 +449,12 @@ export default function HomePage() {
     { value: "casual", label: "Casual" },
     { value: "confident", label: "Confident" },
     { value: "humble", label: "Humble" },
+    { value: "critical", label: "Critical" },
+    { value: "skeptical", label: "Skeptical" },
+    { value: "disagreeing", label: "Disagreeing" },
+    { value: "contrarian", label: "Contrarian" },
+    { value: "unsupportive", label: "Unsupportive" },
+    { value: "doubtful", label: "Doubtful" },
   ]
 
   const connectionToneOptions: ToneOption[] = [

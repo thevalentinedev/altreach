@@ -1,11 +1,27 @@
 import { NextResponse } from "next/server"
 import browserPool from "@/lib/browser-pool"
 
+interface AuthData {
+  authToken: string
+  ct0Token?: string
+}
+
 interface TweetExtractionResult {
-  content?: string
+  content?: string | null
   source: string
+  images?: string[]
   error?: string
-  images?: string[] // Added images array
+}
+
+// In-memory cache (replace with a proper database in production)
+const authCache: { [key: string]: AuthData } = {}
+
+function saveAuthToCache(sessionId: string, authData: AuthData) {
+  authCache[sessionId] = authData
+}
+
+function getAuthFromCache(sessionId: string): AuthData | undefined {
+  return authCache[sessionId]
 }
 
 export async function POST(request: Request) {
@@ -13,7 +29,7 @@ export async function POST(request: Request) {
   let page = null
 
   try {
-    const { url, authToken } = await request.json()
+    const { url, authToken, ct0Token } = await request.json()
 
     if (!url) {
       return NextResponse.json({ error: "URL is required" }, { status: 400 })
@@ -48,10 +64,10 @@ export async function POST(request: Request) {
     browser = await browserPool.acquire()
     page = await browserPool.createPage(browser)
 
-    console.log("🍪 Injecting authentication token...")
+    console.log("🍪 Injecting authentication tokens...")
 
     // Inject auth_token cookie into Twitter domain
-    await page.setCookie(
+    const cookies = [
       {
         name: "auth_token",
         value: authToken,
@@ -59,7 +75,7 @@ export async function POST(request: Request) {
         path: "/",
         httpOnly: true,
         secure: true,
-        sameSite: "None",
+        sameSite: "None" as const,
       },
       {
         name: "auth_token",
@@ -68,9 +84,35 @@ export async function POST(request: Request) {
         path: "/",
         httpOnly: true,
         secure: true,
-        sameSite: "None",
+        sameSite: "None" as const,
       },
-    )
+    ]
+
+    // Add CT0 token if provided
+    if (ct0Token) {
+      cookies.push(
+        {
+          name: "ct0",
+          value: ct0Token,
+          domain: ".twitter.com",
+          path: "/",
+          httpOnly: false,
+          secure: true,
+          sameSite: "None" as const,
+        },
+        {
+          name: "ct0",
+          value: ct0Token,
+          domain: ".x.com",
+          path: "/",
+          httpOnly: false,
+          secure: true,
+          sameSite: "None" as const,
+        },
+      )
+    }
+
+    await page.setCookie(...cookies)
 
     console.log("🔗 Navigating to tweet URL...")
 

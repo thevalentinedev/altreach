@@ -52,6 +52,14 @@ Consider factors like:
 - Seniority level (C-suite = more formal, individual contributors = more casual)
 - Industry culture (tech = casual, finance = formal, creative = friendly)
 - Role type (sales = warm, engineering = direct, HR = supportive)
+- Whether the person's content or approach might benefit from critical engagement
+- If their posts or approach seem controversial, oversimplified, or questionable
+- Whether they would appreciate thoughtful disagreement or alternative viewpoints
+
+Tone Selection Guidelines:
+- Use POSITIVE tones (professional, friendly, supportive) for: standard professionals, helpful content, collaborative approaches
+- Use CRITICAL tones (analytical, skeptical, disagreeing) for: controversial content, oversimplified approaches, questionable claims
+- Use NEUTRAL tones (respectful, thoughtful) for: balanced professionals, mixed content
 
 Return ONLY a short descriptive phrase (2-4 words) that captures the optimal tone. Examples:
 - "Professional but warm"
@@ -59,7 +67,13 @@ Return ONLY a short descriptive phrase (2-4 words) that captures the optimal ton
 - "Confident and direct"
 - "Friendly and enthusiastic"
 - "Respectful and formal"
-- "Approachable and genuine"`,
+- "Approachable and genuine"
+- "Critical and analytical"
+- "Skeptical and questioning"
+- "Respectfully disagreeing"
+- "Contrarian and challenging"
+- "Unsupportive but constructive"
+- "Doubtful and cautious"`,
           },
           {
             role: "user",

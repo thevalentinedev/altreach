@@ -17,7 +17,6 @@ import {
   Info,
   Sparkles,
   ImageIcon,
-  Chrome,
   Shield,
   RefreshCw,
   LogOut,
@@ -27,6 +26,7 @@ import {
   Lightbulb,
   Copy,
   Download,
+  LogIn,
 } from "lucide-react"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
@@ -60,10 +60,12 @@ interface GeneratedPost {
   isGeneratingImage?: boolean
 }
 
+// Update the AuthData interface to include the CT0 token
 interface AuthData {
   authToken: string
   timestamp: number
   expiresAt?: number
+  ct0Token?: string
 }
 
 type InputMethod = "url" | "manual"
@@ -71,14 +73,20 @@ type AuthState = "checking" | "unauthenticated" | "authenticating" | "authentica
 type ViewState = "comments" | "create"
 
 const toneOptions = [
-  { value: "casual and conversational", label: "Casual" },
-  { value: "witty and playful", label: "Witty" },
-  { value: "supportive and encouraging", label: "Supportive" },
-  { value: "curious and thoughtful", label: "Curious" },
-  { value: "enthusiastic and excited", label: "Enthusiastic" },
-  { value: "professional but friendly", label: "Professional" },
-  { value: "humorous and light", label: "Humorous" },
-  { value: "respectful and thoughtful", label: "Respectful" },
+  { value: "casual and conversational", label: "Casual", category: "positive" },
+  { value: "witty and playful", label: "Witty", category: "positive" },
+  { value: "supportive and encouraging", label: "Supportive", category: "positive" },
+  { value: "curious and thoughtful", label: "Curious", category: "positive" },
+  { value: "enthusiastic and excited", label: "Enthusiastic", category: "positive" },
+  { value: "professional but friendly", label: "Professional", category: "positive" },
+  { value: "humorous and light", label: "Humorous", category: "positive" },
+  { value: "respectful and thoughtful", label: "Respectful", category: "positive" },
+  { value: "critical and analytical", label: "Critical", category: "critical" },
+  { value: "skeptical and questioning", label: "Skeptical", category: "critical" },
+  { value: "respectfully disagreeing", label: "Disagreeing", category: "critical" },
+  { value: "contrarian and challenging", label: "Contrarian", category: "critical" },
+  { value: "unsupportive but constructive", label: "Unsupportive", category: "critical" },
+  { value: "doubtful and cautious", label: "Doubtful", category: "critical" },
 ]
 
 const AUTH_CACHE_KEY = "altreach_twitter_auth"
@@ -209,6 +217,10 @@ export default function TwitterInput({
   const [postGenerationError, setPostGenerationError] = useState<string | null>(null)
   const [copiedPost, setCopiedPost] = useState<string | null>(null)
 
+  // Manual Auth State
+  const [manualAuthToken, setManualAuthToken] = useState("")
+  const [manualCt0Token, setManualCt0Token] = useState("")
+
   // Check for cached authentication on component mount
   useEffect(() => {
     checkCachedAuth()
@@ -244,10 +256,12 @@ export default function TwitterInput({
     setAuthState("unauthenticated")
   }
 
-  const saveAuthToCache = (authToken: string) => {
+  // Update the saveAuthToCache function to accept an optional CT0 token
+  const saveAuthToCache = (authToken: string, ct0Token?: string) => {
     const authData: AuthData = {
       authToken,
       timestamp: Date.now(),
+      ...(ct0Token && { ct0Token }),
     }
 
     try {
@@ -277,15 +291,18 @@ export default function TwitterInput({
     }
   }
 
-  const loginWithBrowser = async () => {
+  // Add these new authentication functions after the clearAuthCache function
+
+  // Function to use predefined authentication from environment variables
+  const usePredefinedAuth = async () => {
     setIsLoggingIn(true)
     setLoginError(null)
     setAuthState("authenticating")
 
     try {
-      console.log("🚀 Starting browser login request...")
+      console.log("🔑 Using predefined authentication...")
 
-      const response = await fetch("/api/twitter/login-session", {
+      const response = await fetch("/api/twitter/predefined-auth", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -296,7 +313,7 @@ export default function TwitterInput({
 
       if (!response.ok || !data.success || data.error) {
         const errorMessage = data.error || data.message || `Server error (${response.status})`
-        console.error("❌ Login failed:", errorMessage)
+        console.error("❌ Predefined auth failed:", errorMessage)
         setLoginError(errorMessage)
         setAuthState("unauthenticated")
         return
@@ -305,13 +322,65 @@ export default function TwitterInput({
       if (data.cookies?.auth_token) {
         saveAuthToCache(data.cookies.auth_token)
         setLoginError(null)
-        console.log("✅ Login successful, token cached")
+        console.log("✅ Predefined auth successful, token cached")
       } else {
-        setLoginError("Login completed but could not extract session token")
+        setLoginError("Predefined auth completed but could not extract session token")
         setAuthState("unauthenticated")
       }
     } catch (error) {
-      console.error("❌ Error during browser login:", error)
+      console.error("❌ Error during predefined auth:", error)
+
+      if (error instanceof Error) {
+        setLoginError(`Request failed: ${error.message}`)
+      } else {
+        setLoginError("An unexpected error occurred during authentication. Please try again.")
+      }
+      setAuthState("unauthenticated")
+    } finally {
+      setIsLoggingIn(false)
+    }
+  }
+
+  // Function to login with manually entered cookies
+  const loginWithManualCookies = async () => {
+    setIsLoggingIn(true)
+    setLoginError(null)
+    setAuthState("authenticating")
+
+    try {
+      console.log("🚀 Attempting login with manual cookies...")
+
+      const response = await fetch("/api/twitter/manual-auth", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          authToken: manualAuthToken,
+          ct0: manualCt0Token,
+        }),
+      })
+
+      const data = await safeParseResponse(response)
+
+      if (!response.ok || !data.success || data.error) {
+        const errorMessage = data.error || data.message || `Server error (${response.status})`
+        console.error("❌ Manual auth failed:", errorMessage)
+        setLoginError(errorMessage)
+        setAuthState("unauthenticated")
+        return
+      }
+
+      if (data.authToken) {
+        saveAuthToCache(data.authToken, manualCt0Token)
+        setLoginError(null)
+        console.log("✅ Manual auth successful, token cached")
+      } else {
+        setLoginError("Manual auth completed but could not extract session token")
+        setAuthState("unauthenticated")
+      }
+    } catch (error) {
+      console.error("❌ Error during manual auth:", error)
 
       if (error instanceof TypeError && error.message.includes("fetch")) {
         setLoginError("Network error: Could not connect to the server. Please check your connection.")
@@ -325,6 +394,56 @@ export default function TwitterInput({
       setIsLoggingIn(false)
     }
   }
+
+  // Function to login with browser session
+  // const loginWithBrowser = async () => {
+  //   setIsLoggingIn(true)
+  //   setLoginError(null)
+  //   setAuthState("authenticating")
+
+  //   try {
+  //     console.log("🚀 Starting browser login session...")
+
+  //     const response = await fetch("/api/twitter/login-session", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //     })
+
+  //     const data = await safeParseResponse(response)
+
+  //     if (!response.ok || !data.success || data.error) {
+  //       const errorMessage = data.error || data.message || `Server error (${response.status})`
+  //       console.error("❌ Browser login failed:", errorMessage)
+  //       setLoginError(errorMessage)
+  //       setAuthState("unauthenticated")
+  //       return
+  //     }
+
+  //     if (data.cookies?.auth_token) {
+  //       saveAuthToCache(data.cookies.auth_token, data.cookies.ct0)
+  //       setLoginError(null)
+  //       console.log("✅ Browser login successful, tokens cached")
+  //     } else {
+  //       setLoginError("Browser login completed but could not extract session tokens")
+  //       setAuthState("unauthenticated")
+  //     }
+  //   } catch (error) {
+  //     console.error("❌ Error during browser login:", error)
+
+  //     if (error instanceof TypeError && error.message.includes("fetch")) {
+  //       setLoginError("Network error: Could not connect to the server. Please check your connection.")
+  //     } else if (error instanceof Error) {
+  //       setLoginError(`Request failed: ${error.message}`)
+  //     } else {
+  //       setLoginError("An unexpected error occurred during browser login. Please try again.")
+  //     }
+  //     setAuthState("unauthenticated")
+  //   } finally {
+  //     setIsLoggingIn(false)
+  //   }
+  // }
 
   // Helper to validate Twitter URLs
   const isValidTwitterUrl = (url: string): boolean => {
@@ -385,6 +504,7 @@ export default function TwitterInput({
           body: JSON.stringify({
             url: url.trim(),
             authToken: authData.authToken,
+            ct0Token: authData.ct0Token,
           }),
         })
 
@@ -533,6 +653,7 @@ export default function TwitterInput({
             text: effectiveContent,
             author: tweetContent?.author || null,
             username: tweetContent?.username || null,
+            images: tweetContent?.images || [], // Include images
           },
           tone,
           length: commentLength,
@@ -800,6 +921,7 @@ export default function TwitterInput({
         <CardContent className="space-y-4 sm:space-y-6 pt-4 sm:pt-6 px-4 sm:px-6">
           {/* Login Required Card content remains the same... */}
           {/* Login Required Card */}
+          {/* Login Card with Authentication Options */}
           <Card className="border-[#1DA1F2]/20 bg-gradient-to-br from-blue-50/50 to-cyan-50/50 dark:from-blue-900/10 dark:to-cyan-900/10">
             <CardHeader className="text-center pb-4">
               <div className="w-16 h-16 mx-auto bg-gradient-to-br from-[#1DA1F2] to-cyan-500 rounded-2xl flex items-center justify-center shadow-lg mb-4">
@@ -809,125 +931,151 @@ export default function TwitterInput({
                 Connect Your Twitter Account
               </CardTitle>
               <p className="text-slate-600 dark:text-slate-400 mt-2">
-                To generate smart Twitter comments, we need to authenticate with your Twitter account. This allows us to
-                extract tweet content and generate personalized responses.
+                Choose one of the authentication methods below to connect your Twitter account.
               </p>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Features List */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-start gap-3 p-3 bg-white/50 dark:bg-slate-800/50 rounded-lg">
-                  <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Zap className="h-4 w-4 text-[#1DA1F2]" />
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-[#1E293B] dark:text-white text-sm">Smart Content Extraction</h4>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                      Extract tweet text, images, and context automatically
+              {/* Authentication Methods Tabs */}
+              <Tabs defaultValue="predefined" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="predefined" className="text-xs sm:text-sm">
+                    Predefined Auth
+                  </TabsTrigger>
+                  <TabsTrigger value="manual" className="text-xs sm:text-sm">
+                    Manual Input
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* Predefined Auth Tab */}
+                <TabsContent value="predefined" className="space-y-4 pt-4">
+                  <div className="text-center">
+                    <p className="text-sm text-slate-600 dark:text-slate-400 mb-4">
+                      Use predefined authentication credentials stored in environment variables.
+                    </p>
+                    <Button
+                      className="w-full h-14 text-base font-semibold bg-gradient-to-r from-green-600 to-emerald-500 hover:from-green-700 hover:to-emerald-600 text-white transition-all duration-200 shadow-lg hover:shadow-xl rounded-xl disabled:opacity-50"
+                      onClick={usePredefinedAuth}
+                      disabled={isLoggingIn}
+                    >
+                      {isLoggingIn ? (
+                        <>
+                          <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                          Applying Predefined Auth...
+                        </>
+                      ) : (
+                        <>
+                          <Shield className="mr-3 h-5 w-5" />
+                          Use Predefined Auth
+                        </>
+                      )}
+                    </Button>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-3">
+                      This option uses authentication credentials configured by your administrator.
                     </p>
                   </div>
-                </div>
+                </TabsContent>
 
-                <div className="flex items-start gap-3 p-3 bg-white/50 dark:bg-slate-800/50 rounded-lg">
-                  <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Sparkles className="h-4 w-4 text-purple-600" />
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-[#1E293B] dark:text-white text-sm">AI-Powered Responses</h4>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                      Generate contextual comments with perfect tone matching
+                {/* Manual Input Tab */}
+                <TabsContent value="manual" className="space-y-4 pt-4">
+                  <div className="space-y-4">
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                      Manually enter your Twitter authentication cookies. You can find these in your browser's developer
+                      tools.
                     </p>
-                  </div>
-                </div>
 
-                <div className="flex items-start gap-3 p-3 bg-white/50 dark:bg-slate-800/50 rounded-lg">
-                  <div className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <Shield className="h-4 w-4 text-green-600" />
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-[#1E293B] dark:text-white text-sm">Secure & Private</h4>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                      Your credentials are processed securely and cached locally
-                    </p>
-                  </div>
-                </div>
+                    <div className="space-y-2">
+                      <label htmlFor="auth-token" className="text-sm font-medium text-[#1E293B] dark:text-slate-300">
+                        Auth Token
+                      </label>
+                      <Input
+                        id="auth-token"
+                        placeholder="Enter your auth_token cookie value"
+                        value={manualAuthToken}
+                        onChange={(e) => setManualAuthToken(e.target.value)}
+                        className="h-11 border-slate-200 dark:border-slate-700 rounded-lg focus-visible:ring-[#1DA1F2] dark:bg-slate-800 dark:text-white"
+                      />
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Find this in your browser cookies as "auth_token"
+                      </p>
+                    </div>
 
-                <div className="flex items-start gap-3 p-3 bg-white/50 dark:bg-slate-800/50 rounded-lg">
-                  <div className="w-8 h-8 bg-orange-100 dark:bg-orange-900/30 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <ImageIcon className="h-4 w-4 text-orange-600" />
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-[#1E293B] dark:text-white text-sm">Image Support</h4>
-                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
-                      Extract and display images from tweets for better context
-                    </p>
-                  </div>
-                </div>
-              </div>
+                    <div className="space-y-2">
+                      <label htmlFor="ct0-token" className="text-sm font-medium text-[#1E293B] dark:text-slate-300">
+                        CT0 Token (Optional)
+                      </label>
+                      <Input
+                        id="ct0-token"
+                        placeholder="Enter your ct0 cookie value (optional)"
+                        value={manualCt0Token}
+                        onChange={(e) => setManualCt0Token(e.target.value)}
+                        className="h-11 border-slate-200 dark:border-slate-700 rounded-lg focus-visible:ring-[#1DA1F2] dark:bg-slate-800 dark:text-white"
+                      />
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Find this in your browser cookies as "ct0" (optional)
+                      </p>
+                    </div>
 
-              {/* Login Button */}
-              <div className="text-center space-y-4">
-                <Button
-                  className="w-full h-14 text-base font-semibold bg-gradient-to-r from-[#1DA1F2] to-cyan-500 hover:from-[#1a91da] hover:to-cyan-600 text-white transition-all duration-200 shadow-lg hover:shadow-xl rounded-xl disabled:opacity-50"
-                  onClick={loginWithBrowser}
-                  disabled={isLoggingIn}
+                    <Button
+                      className="w-full h-14 text-base font-semibold bg-gradient-to-r from-purple-600 to-indigo-500 hover:from-purple-700 hover:to-indigo-600 text-white transition-all duration-200 shadow-lg hover:shadow-xl rounded-xl disabled:opacity-50"
+                      onClick={loginWithManualCookies}
+                      disabled={isLoggingIn || !manualAuthToken.trim()}
+                    >
+                      {isLoggingIn ? (
+                        <>
+                          <Loader2 className="mr-3 h-5 w-5 animate-spin" />
+                          Logging in...
+                        </>
+                      ) : (
+                        <>
+                          <LogIn className="mr-3 h-5 w-5" />
+                          Login Now
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </TabsContent>
+              </Tabs>
+
+              {/* Login Process Info */}
+              {authState === "authenticating" && (
+                <Alert className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+                  <Loader2 className="h-4 w-4 animate-spin text-blue-600 dark:text-blue-400" />
+                  <AlertDescription className="text-blue-600 dark:text-blue-400">
+                    <div className="space-y-1">
+                      <p className="font-medium">Authentication in progress...</p>
+                      <p className="text-sm">
+                        {process.env.NODE_ENV === "production"
+                          ? "Processing your login request. This may take a moment as we securely authenticate with Twitter."
+                          : "A browser window will open. Please log in to Twitter/X and wait for the process to complete."}
+                      </p>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {/* Login Error */}
+              {loginError && (
+                <Alert
+                  variant="destructive"
+                  className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
                 >
-                  {isLoggingIn ? (
-                    <>
-                      <Loader2 className="mr-3 h-5 w-5 animate-spin" />
-                      {process.env.NODE_ENV === "production"
-                        ? "Processing Login Request..."
-                        : "Opening Browser & Waiting for Login..."}
-                    </>
-                  ) : (
-                    <>
-                      <Chrome className="mr-3 h-5 w-5" />
-                      Login with Twitter
-                    </>
-                  )}
-                </Button>
-
-                {/* Login Process Info */}
-                {authState === "authenticating" && (
-                  <Alert className="bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
-                    <Loader2 className="h-4 w-4 animate-spin text-blue-600 dark:text-blue-400" />
-                    <AlertDescription className="text-blue-600 dark:text-blue-400">
-                      <div className="space-y-1">
-                        <p className="font-medium">Authentication in progress...</p>
-                        <p className="text-sm">
-                          {process.env.NODE_ENV === "production"
-                            ? "Processing your login request. This may take a moment as we securely authenticate with Twitter."
-                            : "A browser window will open. Please log in to Twitter/X and wait for the process to complete."}
-                        </p>
-                      </div>
-                    </AlertDescription>
-                  </Alert>
-                )}
-
-                {/* Login Error */}
-                {loginError && (
-                  <Alert
-                    variant="destructive"
-                    className="bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800"
-                  >
-                    <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
-                    <AlertDescription className="text-red-600 dark:text-red-400">
-                      <div className="space-y-2">
-                        <p className="font-medium">Authentication Failed</p>
-                        <p className="text-sm">{loginError}</p>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setLoginError(null)}
-                          className="mt-2 text-red-600 border-red-300 hover:bg-red-50"
-                        >
-                          Try Again
-                        </Button>
-                      </div>
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </div>
+                  <AlertCircle className="h-4 w-4 text-red-600 dark:text-red-400" />
+                  <AlertDescription className="text-red-600 dark:text-red-400">
+                    <div className="space-y-2">
+                      <p className="font-medium">Authentication Failed</p>
+                      <p className="text-sm">{loginError}</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setLoginError(null)}
+                        className="mt-2 text-red-600 border-red-300 hover:bg-red-50"
+                      >
+                        Try Again
+                      </Button>
+                    </div>
+                  </AlertDescription>
+                </Alert>
+              )}
 
               {/* Security Notice */}
               <Alert className="bg-slate-50 dark:bg-slate-900/20 border-slate-200 dark:border-slate-800">
@@ -938,8 +1086,6 @@ export default function TwitterInput({
                     <p className="text-xs">
                       Your authentication is processed securely and stored locally in your browser. We never store your
                       Twitter credentials on our servers. Session data expires automatically after 24 hours.
-                      {process.env.NODE_ENV === "production" &&
-                        " In production, authentication runs in a secure headless environment."}
                     </p>
                   </div>
                 </AlertDescription>
@@ -1050,7 +1196,14 @@ export default function TwitterInput({
                                 <SelectContent>
                                   {toneOptions.map((toneOption) => (
                                     <SelectItem key={toneOption.value} value={toneOption.value}>
-                                      {toneOption.label}
+                                      <div className="flex items-center gap-2">
+                                        <span>{toneOption.label}</span>
+                                        {toneOption.category === "critical" && (
+                                          <Badge variant="outline" className="text-xs px-1 py-0 h-4 text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-600">
+                                            Critical
+                                          </Badge>
+                                        )}
+                                      </div>
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
@@ -1655,7 +1808,14 @@ export default function TwitterInput({
                 <SelectContent>
                   {toneOptions.map((toneOption) => (
                     <SelectItem key={toneOption.value} value={toneOption.value}>
-                      {toneOption.label}
+                      <div className="flex items-center gap-2">
+                        <span>{toneOption.label}</span>
+                        {toneOption.category === "critical" && (
+                          <Badge variant="outline" className="text-xs px-1 py-0 h-4 text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-600">
+                            Critical
+                          </Badge>
+                        )}
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -1776,7 +1936,11 @@ export default function TwitterInput({
           {isGenerating ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
-              <span className="hidden sm:inline">Generating Comments...</span>
+              <span className="hidden sm:inline">
+                {tweetContent?.images && tweetContent.images.length > 0
+                  ? "Analyzing Images & Generating..."
+                  : "Generating Comments..."}
+              </span>
               <span className="sm:hidden">Generating...</span>
             </>
           ) : (
@@ -1784,6 +1948,7 @@ export default function TwitterInput({
               <Twitter className="mr-2 h-4 w-4 sm:h-5 sm:w-5" />
               <span className="hidden sm:inline">
                 Generate {variations} Comment{variations !== 1 ? "s" : ""}
+                {tweetContent?.images && tweetContent.images.length > 0 && " (with Image Analysis)"}
               </span>
               <span className="sm:hidden">Generate ({variations})</span>
             </>

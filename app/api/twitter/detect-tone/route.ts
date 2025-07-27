@@ -42,6 +42,14 @@ Consider factors like:
 - The tweet's own tone (casual, formal, humorous, serious)
 - The topic being discussed (tech, politics, entertainment, personal)
 - The apparent intent (sharing information, asking questions, expressing opinions)
+- Whether the content contains claims, opinions, or statements that might benefit from critical analysis
+- If the tweet makes bold claims, controversial statements, or oversimplifications
+- Whether the content would benefit from questioning, skepticism, or alternative viewpoints
+
+Tone Selection Guidelines:
+- Use POSITIVE tones (supportive, enthusiastic, curious) for: personal updates, achievements, questions, helpful content
+- Use CRITICAL tones (skeptical, analytical, disagreeing) for: bold claims, controversial opinions, oversimplifications, questionable statements
+- Use NEUTRAL tones (professional, thoughtful) for: factual information, balanced discussions
 
 Return ONLY a short descriptive phrase (2-4 words) that captures the optimal tone. Examples:
 - "Witty and playful"
@@ -49,7 +57,13 @@ Return ONLY a short descriptive phrase (2-4 words) that captures the optimal ton
 - "Curious and thoughtful"
 - "Enthusiastic and excited"
 - "Professional but friendly"
-- "Casual and conversational"`,
+- "Casual and conversational"
+- "Critical and analytical"
+- "Skeptical and questioning"
+- "Respectfully disagreeing"
+- "Contrarian and challenging"
+- "Unsupportive but constructive"
+- "Doubtful and cautious"`,
           },
           {
             role: "user",
@@ -90,14 +104,21 @@ Return ONLY a short descriptive phrase (2-4 words) that captures the optimal ton
       // Fallback tone suggestions based on simple heuristics
       let fallbackTone = "Casual and conversational"
 
-      if (tweetContent.text.includes("?")) {
-        fallbackTone = "Helpful and informative"
-      } else if (tweetContent.text.toLowerCase().includes("excited") || tweetContent.text.includes("!")) {
-        fallbackTone = "Enthusiastic and supportive"
-      } else if (
-        tweetContent.text.toLowerCase().includes("opinion") ||
-        tweetContent.text.toLowerCase().includes("think")
-      ) {
+      // Check for content that might benefit from critical analysis
+      const text = tweetContent.text.toLowerCase()
+      const hasBoldClaims = /\b(all|every|always|never|impossible|guaranteed|definitely|absolutely)\b/.test(text)
+      const hasControversialTopics = /\b(politics|religion|conspiracy|fake|hoax|scam|fraud)\b/.test(text)
+      const hasOversimplifications = /\b(simple|easy|just|only|merely|simply)\b/.test(text)
+      const hasQuestionableStats = /\b(studies show|research proves|scientists say|experts agree)\b/.test(text)
+      const hasAbsoluteStatements = /\b(no one|everyone|nobody|everybody|always|never)\b/.test(text)
+
+      if (hasBoldClaims || hasControversialTopics || hasOversimplifications || hasQuestionableStats || hasAbsoluteStatements) {
+        fallbackTone = "Skeptical and questioning"
+      } else if (tweetContent.text.includes("?")) {
+        fallbackTone = "Curious and thoughtful"
+      } else if (text.includes("excited") || tweetContent.text.includes("!")) {
+        fallbackTone = "Enthusiastic and excited"
+      } else if (text.includes("opinion") || text.includes("think")) {
         fallbackTone = "Thoughtful and curious"
       }
 
