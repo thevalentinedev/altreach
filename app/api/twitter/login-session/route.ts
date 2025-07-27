@@ -23,8 +23,8 @@ export async function POST(request: Request) {
 
     if (isProduction) {
       // Configure chromium for serverless
-      chromium.setHeadlessMode = true
-      chromium.setGraphicsMode = false
+      // Note: @sparticuz/chromium handles headless mode automatically
+      console.log("🔧 Using serverless chromium configuration")
     }
 
     // Launch browser with appropriate configuration
@@ -57,10 +57,9 @@ export async function POST(request: Request) {
             "--disable-blink-features=AutomationControlled",
             "--disable-features=VizDisplayCompositor",
           ],
-      defaultViewport: isProduction ? chromium.defaultViewport : null,
+      defaultViewport: isProduction ? { width: 1280, height: 720 } : null,
       executablePath: isProduction ? await chromium.executablePath() : undefined,
-      headless: isProduction ? chromium.headless : false,
-      ignoreHTTPSErrors: true,
+      headless: isProduction ? true : false,
     })
 
     const page = await browser.newPage()
@@ -91,7 +90,7 @@ export async function POST(request: Request) {
       console.log("⚠️ Production headless mode detected. Manual token entry recommended.")
 
       // Wait a bit to see if we're already logged in or can detect login elements
-      await page.waitForTimeout(5000)
+      await new Promise(resolve => setTimeout(resolve, 5000))
 
       // Check if we're already logged in
       const isAlreadyLoggedIn = await page.evaluate(() => {

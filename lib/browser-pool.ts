@@ -1,5 +1,15 @@
 import puppeteer, { type Browser, type Page } from "puppeteer"
 
+// Import chromium for serverless environments
+let chromium: any = null
+if (process.env.NODE_ENV === "production") {
+  try {
+    chromium = require("@sparticuz/chromium")
+  } catch (error) {
+    console.warn("⚠️ @sparticuz/chromium not available, using default puppeteer")
+  }
+}
+
 interface BrowserPoolOptions {
   maxConcurrency: number
   maxIdleTime: number // in milliseconds
@@ -24,17 +34,29 @@ class BrowserPool {
     this.maxIdleTime = options.maxIdleTime
     this.puppeteerOptions = options.puppeteerOptions || {
       headless: "new",
-      args: [
-        "--no-sandbox",
-        "--disable-setuid-sandbox",
-        "--disable-dev-shm-usage",
-        "--disable-gpu",
-        "--disable-web-security",
-        "--disable-features=IsolateOrigins,site-per-process",
-        "--memory-pressure-off",
-        "--max_old_space_size=4096",
-      ],
-      ignoreHTTPSErrors: true,
+      args: chromium
+        ? [
+            ...chromium.args,
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--disable-web-security",
+            "--disable-features=IsolateOrigins,site-per-process",
+            "--memory-pressure-off",
+            "--max_old_space_size=4096",
+          ]
+        : [
+            "--no-sandbox",
+            "--disable-setuid-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-gpu",
+            "--disable-web-security",
+            "--disable-features=IsolateOrigins,site-per-process",
+            "--memory-pressure-off",
+            "--max_old_space_size=4096",
+          ],
+      executablePath: chromium ? chromium.executablePath() : undefined,
     }
 
     // Start cleanup interval to close idle browsers

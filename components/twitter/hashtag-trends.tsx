@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -189,7 +189,7 @@ export default function HashtagTrends({ onBack }: HashtagTrendsProps) {
   }
 
   // Fetch trends data
-  const fetchTrends = async (useCache = true) => {
+  const fetchTrends = useCallback(async (useCache = true) => {
     setLoading(true)
     setError(null)
 
@@ -243,14 +243,14 @@ export default function HashtagTrends({ onBack }: HashtagTrendsProps) {
       setShowSkeleton(false)
       setIsInitialLoad(false)
     }
-  }
+  }, [category, country, timeFilter, date, isInitialLoad])
 
   // Fetch trends when parameters change
   useEffect(() => {
     if (countries.length > 0) {
       fetchTrends()
     }
-  }, [category, country, timeFilter, countries.length])
+  }, [category, country, timeFilter, countries.length, fetchTrends])
 
   // Handle category change
   const handleCategoryChange = (value: string) => {

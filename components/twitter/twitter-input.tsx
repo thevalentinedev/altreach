@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -478,71 +478,72 @@ export default function TwitterInput({
     }
   }
 
-  // Extract tweet content when URL changes
-  useEffect(() => {
-    const extractTweetFromUrl = async () => {
-      if (!url.trim() || !isValidTwitterUrl(url) || inputMethod !== "url" || !authData?.authToken) {
+  // Extract tweet content from URL
+  const extractTweetFromUrl = useCallback(async () => {
+    if (!url.trim() || !isValidTwitterUrl(url) || inputMethod !== "url" || !authData?.authToken) {
+      return
+    }
+
+    console.log("🚀 Starting tweet extraction for:", url)
+    setIsExtractingTweet(true)
+    setExtractError(null)
+    setExtractSuccess(false)
+    setExtractMessage(null)
+    setTweetContent(null)
+    setIsAiGenerated(false)
+    setSelectedImageIndex(0)
+    setImageError(false)
+
+    try {
+      const response = await fetch("/api/twitter/extract-with-session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          url: url.trim(),
+          authToken: authData.authToken,
+          ct0Token: authData.ct0Token,
+        }),
+      })
+
+      const data = await safeParseResponse(response)
+
+      if (!response.ok || data.error) {
+        setExtractError(data.message || data.error || "Failed to extract tweet content")
         return
       }
 
-      console.log("🚀 Starting tweet extraction for:", url)
-      setIsExtractingTweet(true)
-      setExtractError(null)
-      setExtractSuccess(false)
-      setExtractMessage(null)
-      setTweetContent(null)
-      setIsAiGenerated(false)
-      setSelectedImageIndex(0)
-      setImageError(false)
-
-      try {
-        const response = await fetch("/api/twitter/extract-with-session", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            url: url.trim(),
-            authToken: authData.authToken,
-            ct0Token: authData.ct0Token,
-          }),
-        })
-
-        const data = await safeParseResponse(response)
-
-        if (!response.ok || data.error) {
-          setExtractError(data.message || data.error || "Failed to extract tweet content")
-          return
-        }
-
-        const tweetContent: TweetContent = {
-          text: data.content,
-          author: data.author || null,
-          username: data.username || null,
-          timestamp: data.timestamp || null,
-          url: url,
-          images: data.images || [],
-        }
-
-        setTweetContent(tweetContent)
-        setExtractSuccess(true)
-        setExtractMessage("Tweet content extracted successfully")
-
-        // If we successfully extracted content and smart tone is enabled, detect tone
-        if (tweetContent.text && useSmartTone) {
-          console.log("🎯 Triggering tone detection for:", tweetContent.text)
-          detectTone(tweetContent)
-        }
-
-        setExtractError(null)
-      } catch (error) {
-        console.error("❌ Error extracting tweet:", error)
-        setExtractError("Failed to extract tweet content. Please check the URL or try manual input.")
-      } finally {
-        setIsExtractingTweet(false)
+      const tweetContent: TweetContent = {
+        text: data.content,
+        author: data.author || null,
+        username: data.username || null,
+        timestamp: data.timestamp || null,
+        url: url,
+        images: data.images || [],
       }
-    }
 
+      setTweetContent(tweetContent)
+      setExtractSuccess(true)
+      setExtractMessage("Tweet content extracted successfully")
+
+      // If we successfully extracted content and smart tone is enabled, detect tone
+      if (tweetContent.text && useSmartTone) {
+        console.log("🎯 Triggering tone detection for:", tweetContent.text)
+        // We'll handle tone detection in a separate useEffect
+      }
+
+      setExtractError(null)
+    } catch (error) {
+      console.error("❌ Error extracting tweet:", error)
+      setExtractError("Failed to extract tweet content. Please check the URL or try manual input.")
+    } finally {
+      setIsExtractingTweet(false)
+    }
+  }, [url, inputMethod, authData, useSmartTone])
+
+  // Extract tweet content when URL changes
+  useEffect(() => {
     const timeoutId = setTimeout(() => {
       if (url.trim() && inputMethod === "url" && authState === "authenticated") {
         extractTweetFromUrl()
@@ -550,26 +551,10 @@ export default function TwitterInput({
     }, 1000)
 
     return () => clearTimeout(timeoutId)
-  }, [url, inputMethod, authData, authState])
-
-  // Update preview when manual content changes
-  useEffect(() => {
-    if (inputMethod === "manual" && manualContent.trim()) {
-      if (useSmartTone && manualContent.trim().length > 10) {
-        const mockTweetContent: TweetContent = {
-          text: manualContent,
-          author: null,
-          username: null,
-          timestamp: null,
-          url: "",
-        }
-        detectTone(mockTweetContent)
-      }
-    }
-  }, [manualContent, inputMethod, useSmartTone])
+  }, [url, inputMethod, authState, extractTweetFromUrl])
 
   // Detect tone from tweet content
-  const detectTone = async (content: TweetContent) => {
+  const detectTone = useCallback(async (content: TweetContent) => {
     if (!content.text) return
 
     console.log("🎯 Detecting tone for content:", content.text)
@@ -619,7 +604,23 @@ export default function TwitterInput({
     } finally {
       setIsDetectingTone(false)
     }
-  }
+  }, [])
+
+  // Update preview when manual content changes
+  useEffect(() => {
+    if (inputMethod === "manual" && manualContent.trim()) {
+      if (useSmartTone && manualContent.trim().length > 10) {
+        const mockTweetContent: TweetContent = {
+          text: manualContent,
+          author: null,
+          username: null,
+          timestamp: null,
+          url: "",
+        }
+        detectTone(mockTweetContent)
+      }
+    }
+  }, [manualContent, inputMethod, useSmartTone, detectTone])
 
   // Generate comments
   const generateComments = async () => {
