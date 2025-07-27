@@ -270,6 +270,16 @@ export async function POST(request: Request) {
         "Be friendly, authentic, and engaging. Use emojis naturally. Focus on building community and encouraging interaction.",
     }
 
+    // Tone-specific guidelines for critical engagement
+    const toneGuidelines: Record<string, string> = {
+      critical: "Point out flaws, gaps, or areas for improvement constructively and professionally",
+      skeptical: "Ask thoughtful questions that challenge assumptions respectfully",
+      disagreeing: "Respectfully disagree while offering alternative viewpoints",
+      contrarian: "Present opposing perspectives in a thought-provoking way",
+      unsupportive: "Express disagreement without being hostile or dismissive",
+      doubtful: "Express caution or uncertainty about claims or conclusions",
+    }
+
     // Build context about existing comments to avoid repetition
     let existingCommentsContext = ""
     if (existingComments.length > 0) {
@@ -289,6 +299,17 @@ Your expertise includes:
 
 Platform guidelines for ${platform}:
 ${platformGuidelines[platform] || "Focus on authentic engagement and value-adding comments."}
+
+Tone-specific guidelines:
+${selectedTone && toneGuidelines[selectedTone] ? `- For ${selectedTone} tone: ${toneGuidelines[selectedTone]}` : ""}
+- For critical/analytical tones: Point out flaws, gaps, or areas for improvement constructively
+- For skeptical/questioning tones: Ask thoughtful questions that challenge assumptions
+- For disagreeing tones: Respectfully disagree while offering alternative viewpoints
+- For contrarian tones: Present opposing perspectives in a thought-provoking way
+- For unsupportive tones: Express disagreement without being hostile or dismissive
+- For doubtful tones: Express caution or uncertainty about claims or conclusions
+
+Remember: Even critical responses should be constructive and respectful, not hostile or toxic.
 
 Always prioritize genuine human connection over generic responses.`
 

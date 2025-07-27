@@ -73,14 +73,20 @@ type AuthState = "checking" | "unauthenticated" | "authenticating" | "authentica
 type ViewState = "comments" | "create"
 
 const toneOptions = [
-  { value: "casual and conversational", label: "Casual" },
-  { value: "witty and playful", label: "Witty" },
-  { value: "supportive and encouraging", label: "Supportive" },
-  { value: "curious and thoughtful", label: "Curious" },
-  { value: "enthusiastic and excited", label: "Enthusiastic" },
-  { value: "professional but friendly", label: "Professional" },
-  { value: "humorous and light", label: "Humorous" },
-  { value: "respectful and thoughtful", label: "Respectful" },
+  { value: "casual and conversational", label: "Casual", category: "positive" },
+  { value: "witty and playful", label: "Witty", category: "positive" },
+  { value: "supportive and encouraging", label: "Supportive", category: "positive" },
+  { value: "curious and thoughtful", label: "Curious", category: "positive" },
+  { value: "enthusiastic and excited", label: "Enthusiastic", category: "positive" },
+  { value: "professional but friendly", label: "Professional", category: "positive" },
+  { value: "humorous and light", label: "Humorous", category: "positive" },
+  { value: "respectful and thoughtful", label: "Respectful", category: "positive" },
+  { value: "critical and analytical", label: "Critical", category: "critical" },
+  { value: "skeptical and questioning", label: "Skeptical", category: "critical" },
+  { value: "respectfully disagreeing", label: "Disagreeing", category: "critical" },
+  { value: "contrarian and challenging", label: "Contrarian", category: "critical" },
+  { value: "unsupportive but constructive", label: "Unsupportive", category: "critical" },
+  { value: "doubtful and cautious", label: "Doubtful", category: "critical" },
 ]
 
 const AUTH_CACHE_KEY = "altreach_twitter_auth"
@@ -1190,7 +1196,14 @@ export default function TwitterInput({
                                 <SelectContent>
                                   {toneOptions.map((toneOption) => (
                                     <SelectItem key={toneOption.value} value={toneOption.value}>
-                                      {toneOption.label}
+                                      <div className="flex items-center gap-2">
+                                        <span>{toneOption.label}</span>
+                                        {toneOption.category === "critical" && (
+                                          <Badge variant="outline" className="text-xs px-1 py-0 h-4 text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-600">
+                                            Critical
+                                          </Badge>
+                                        )}
+                                      </div>
                                     </SelectItem>
                                   ))}
                                 </SelectContent>
@@ -1795,7 +1808,14 @@ export default function TwitterInput({
                 <SelectContent>
                   {toneOptions.map((toneOption) => (
                     <SelectItem key={toneOption.value} value={toneOption.value}>
-                      {toneOption.label}
+                      <div className="flex items-center gap-2">
+                        <span>{toneOption.label}</span>
+                        {toneOption.category === "critical" && (
+                          <Badge variant="outline" className="text-xs px-1 py-0 h-4 text-amber-600 dark:text-amber-400 border-amber-300 dark:border-amber-600">
+                            Critical
+                          </Badge>
+                        )}
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>

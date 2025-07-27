@@ -153,6 +153,16 @@ Guidelines:
 - Respond directly to the content of the tweet
 ${hasImages ? "- Consider the visual content in the images when crafting your response" : ""}
 
+Tone-specific guidelines:
+- For critical/analytical tones: Point out flaws, gaps, or areas for improvement constructively
+- For skeptical/questioning tones: Ask thoughtful questions that challenge assumptions
+- For disagreeing tones: Respectfully disagree while offering alternative viewpoints
+- For contrarian tones: Present opposing perspectives in a thought-provoking way
+- For unsupportive tones: Express disagreement without being hostile or dismissive
+- For doubtful tones: Express caution or uncertainty about claims or conclusions
+
+Remember: Even critical responses should be constructive and respectful, not hostile or toxic.
+
 ${instructions ? `Additional instructions: ${instructions}` : ""}
 
 Return your response as a JSON object with the following structure:
